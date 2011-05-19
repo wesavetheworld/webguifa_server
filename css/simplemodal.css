@@ -1,0 +1,82 @@
+/*
+ * SimpleModal Basic Modal Dialog
+ * http://www.ericmmartin.com/projects/simplemodal/
+ * http://code.google.com/p/simplemodal/
+ *
+ * Copyright (c) 2007 Eric Martin - http://ericmmartin.com
+ *
+ * Licensed under the MIT license:
+ *   http://www.opensource.org/licenses/mit-license.php
+ *
+ */
+
+/* Overlay */
+#modalOverlay {
+    background-color:#000;
+    cursor:wait;
+}
+
+/* Container */
+#modalContainer {
+    width:500px;
+    left:50%;
+    top:5%;
+    margin-left:-250px;
+    background-color:#000;
+    border:3px solid #ccc;
+}
+#modalContainer a.modalCloseImg {
+    background:url(/images/close.png) no-repeat;
+    width:25px;
+    height:29px;
+    display:inline;
+    z-index:3200;
+    position:absolute;
+    top:-15px;
+    right:-18px;
+    cursor:pointer;
+    display:none;
+}
+#modalContainer #basicModalContent {
+    padding:8px;
+}
+
+.dialogTitle {
+padding-bottom: 2px;
+margin-bottom: 10px;
+background-color: #1a1a1a;
+border-bottom: solid 1px;
+font-size: 22px;
+text-align: center;
+color: #ccc;
+}
+
+.radioGroup, .checkboxGroup {
+		padding-left: 10px;
+		padding-bottom: 10px;
+}
+
+.dialogContent {
+display: none;
+}
+
+.dialogBody {
+  background-color: #313131;
+  color: #898989;
+  padding-left: 10px;
+  font-size: 18px;
+  padding-bottom: 10px;
+}
+
+.dialogBody #email {
+width: 200px;
+}
+
+.buttonBar a, .buttonBar a:link, .buttonBar a:visited {
+	color: #22538a;
+}
+
+.buttonBar a:hover, .buttonBar a:active, .buttonBar a:focus {
+	color: #b50000;
+}
+
