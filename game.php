@@ -24,7 +24,7 @@ define('PUN_ACTIVE_PAGE', 'index');
 require PUN_ROOT.'header.php';
 
 ?>
-<div class="title">接收数据中……</div>
+<div class="title">接收数据中……（如果30秒还没响应，请刷新重试）</div>
 <img class="busy" src="/images/spin32.gif"/>
 <div class="waitingForOpponent" style="display:none">
         等待其他棋手:<span id="otherPlayer">&nbsp;</span>
@@ -50,8 +50,7 @@ require PUN_ROOT.'header.php';
 <script type="text/javascript" src="javascript/common.js"></script>
 <script type="text/javascript" src="javascript/game.js"></script>
 
-
-<object width="800" height="600" id="guifa" align="middle"> <param name="allowScriptAccess" value="sameDomain" /> <param name="allowFullScreen" value="false" /> <param name="movie" value="swf/game.swf" /> <param name="quality" value="high" /> <param name="bgcolor" value="#8a562e" /> <embed src="swf/game.swf" quality="high" bgcolor="#8a562e" width="800" height="600" name="guifa" align="middle" allowScriptAccess="sameDomain" allowFullScreen="false" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" /> </object>
+<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=9,0,0,0" width="800" height="600" id="guifa" align="middle"> <param name="allowScriptAccess" value="sameDomain" /> <param name="allowFullScreen" value="false" /> <param name="movie" value="swf/game.swf" /> <param name="quality" value="high" /> <param name="bgcolor" value="#8a562e" /> <embed src="swf/game.swf" quality="high" bgcolor="#8a562e" width="800" height="600" name="guifa" align="middle" allowScriptAccess="sameDomain" allowFullScreen="false" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" /> </object>
 
 <script language="javascript">AC_FL_RunContent = 0;</script>
 <script type="text/javascript" src="swf/AC_RunActiveContent.js"></script>

@@ -59,7 +59,6 @@ require PUN_ROOT.'header.php';
                 <tbody class="gameTable">
                     <tr>
                         <td colspan="4">
-                              等待服务器响应...
                         </td>
                     </tr>
                 </tbody>

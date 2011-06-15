@@ -246,6 +246,6 @@ var lobby = {
     $('#goGame').attr({key: key});
     common.initAndDisplayDialog("#enterDialog");
     $('#goGame').attr({ref: key});
-  },
+  }
 };
 

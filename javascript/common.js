@@ -25,7 +25,7 @@ var common = {
     // Returns true if there's currently a dialog up - useful if we want to
     // avoid displaying multiple dialogs at once
     return ($.modal.impl && $.modal.impl.dialog && $.modal.impl.dialog.data);
-  },
+  }
 
 
 };
