@@ -42,6 +42,12 @@ var game = {
   blueName: "",
   brownName: "",
 
+  // Player's time
+  greenTime: 0,
+  yellowTime: 0,
+  blueTime: 0,
+  brownTime: 0,
+
   // If did init
   initialized: false,
 
@@ -161,6 +167,17 @@ var game = {
     game.yellowName = playerNameArray[(5-data.creator_color)%4];
     game.blueName   = playerNameArray[(6-data.creator_color)%4];
     game.brownName  = playerNameArray[(7-data.creator_color)%4];
+
+    // Get the player times
+    var playerTimeArray = new Array(4);
+    playerTimeArray[0] = parseInt(data.player1_time);
+    playerTimeArray[1] = parseInt(data.player2_time);
+    playerTimeArray[2] = parseInt(data.player3_time);
+    playerTimeArray[3] = parseInt(data.player4_time);
+    game.greenTime = playerTimeArray[(4-data.creator_color)%4];
+    game.yellowTime = playerTimeArray[(5-data.creator_color)%4];
+    game.blueTime = playerTimeArray[(6-data.creator_color)%4];
+    game.brownTime = playerTimeArray[(7-data.creator_color)%4];
 
     // Update the board with the latest moves
     game.updateBoard();
@@ -332,6 +349,18 @@ var game = {
     $('#Player2').text(game.yellowName);
     $('#Player3').text(game.blueName);
     $('#Player4').text(game.brownName);
+    var date1 = new Date(game.greenTime * 1000);
+    $('#Player1_time').text(date1.getUTCHours() + ":" + date1.getUTCMinutes() + ":" + date1.getUTCSeconds());
+    date1 = new Date(game.yellowTime * 1000);
+    $('#Player2_time').text(date1.getUTCHours() + ":" + date1.getUTCMinutes() + ":" + date1.getUTCSeconds());
+    date1 = new Date(game.blueTime * 1000);
+    $('#Player3_time').text(date1.getUTCHours() + ":" + date1.getUTCMinutes() + ":" + date1.getUTCSeconds());
+    date1 = new Date(game.brownTime * 1000);
+    $('#Player4_time').text(date1.getUTCHours() + ":" + date1.getUTCMinutes() + ":" + date1.getUTCSeconds());
+    date1 = new Date( (game.greenTime + game.blueTime) * 1000 );
+    $('#Team1_time').text(date1.getUTCHours() + ":" + date1.getUTCMinutes() + ":" + date1.getUTCSeconds());
+    date1 = new Date( (game.yellowTime + game.brownTime) * 1000 );
+    $('#Team2_time').text(date1.getUTCHours() + ":" + date1.getUTCMinutes() + ":" + date1.getUTCSeconds());
 
     $('.title').hide();
     $('.statusTop').show();

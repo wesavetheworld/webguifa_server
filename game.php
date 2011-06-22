@@ -40,10 +40,24 @@ require PUN_ROOT.'header.php';
     &nbsp;
 </div>
 <div class="statusTop" style="display:none">
-    <span id="Player1" style="color:green">&nbsp;</span>
-    <span id="Player2" style="color:orange">&nbsp;</span>
-    <span id="Player3" style="color:blue">&nbsp;</span>
-    <span id="Player4" style="color:brown">&nbsp;</span>
+    <table>
+        <tr>
+            <td id="Player1" style="color:green">&nbsp;</td>
+            <td id="Player2" style="color:orange">&nbsp;</td>
+            <td id="Player3" style="color:blue">&nbsp;</td>
+            <td id="Player4" style="color:brown">&nbsp;</td>
+            <td>队伍1</td>
+            <td>队伍2</td>
+        </tr>
+        <tr>
+            <td id="Player1_time">&nbsp;</td>
+            <td id="Player2_time">&nbsp;</td>
+            <td id="Player3_time">&nbsp;</td>
+            <td id="Player4_time">&nbsp;</td>
+            <td id="Team1_time">&nbsp;</td>
+            <td id="Team2_time">&nbsp;</td>
+        </tr>
+    </table>
 </div>
 <script type="text/javascript" src="javascript/jquery-1.2.3.js"></script>
 <script type="text/javascript" src="javascript/jquery.simplemodal.js"></script>

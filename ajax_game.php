@@ -110,6 +110,10 @@ else if ($action == 'get')
                 'player2_name'=>$cur_game['player2_name'],
                 'player3_name'=>$cur_game['player3_name'],
                 'player4_name'=>$cur_game['player4_name'],
+                'player1_time'=>$cur_game['player1_time'],
+                'player2_time'=>$cur_game['player2_time'],
+                'player3_time'=>$cur_game['player3_time'],
+                'player4_time'=>$cur_game['player4_time'],
                 'creator_color'=>intval($cur_game['player1_color']),
                 'user_color'=>intval($user_color),
                 'game_type'=>intval($cur_game['game_type']),
@@ -130,6 +134,8 @@ else if ($action == 'move')
     {
         guifa_error('no move data');
     }
+
+    $now = time();
 
 	$result = $db->query('SELECT * FROM '.$db->prefix.'games WHERE status=3 AND guid=\''.$db->escape($guid).'\'') or guifa_error('Unable to fetch games info', __FILE__, __LINE__, $db->error());
     if ($db->num_rows($result))
@@ -199,10 +205,22 @@ else if ($action == 'move')
                 $cur_game['status'] = 4;
             }
             $game_data = explode(",", $cur_game['game_data']);
+
+            if (count($game_data) > 0)
+            {
+                $time_map = array(
+                        $cur_game['player1_color']=>"player1_time",
+                        $cur_game['player2_color']=>"player2_time",
+                        $cur_game['player3_color']=>"player3_time",
+                        $cur_game['player4_color']=>"player4_time",
+                        );
+                $cur_game[$time_map[$cur_game['current_turn']]] = $cur_game[$time_map[$cur_game['current_turn']]] + $now - $cur_game['last_modified'];
+                $cur_game['last_modified'] = $now;
+            }
             $game_data[] = $move;
             $cur_game['game_data'] = implode(",", $game_data);
             $cur_game['current_turn'] = next_turn($cur_game);
-            $db->query('UPDATE '.$db->prefix.'games SET game_data=\''.$db->escape($cur_game['game_data']).'\', current_turn='.$cur_game['current_turn'].', status='.$cur_game['status'].', player1_defeated='.$cur_game['player1_defeated'].', player2_defeated='.$cur_game['player2_defeated'].', player3_defeated='.$cur_game['player3_defeated'].', player4_defeated='.$cur_game['player4_defeated'].', victor='.$cur_game['victor'].' WHERE guid=\''.$db->escape($data['guid']).'\'') or guifa_error('Unable to update game', __FILE__, __LINE__, $db->error());
+            $db->query('UPDATE '.$db->prefix.'games SET game_data=\''.$db->escape($cur_game['game_data']).'\', current_turn='.$cur_game['current_turn'].', status='.$cur_game['status'].', player1_defeated='.$cur_game['player1_defeated'].', player2_defeated='.$cur_game['player2_defeated'].', player3_defeated='.$cur_game['player3_defeated'].', player4_defeated='.$cur_game['player4_defeated'].', player1_time='.$cur_game['player1_time'].', player2_time='.$cur_game['player2_time'].', player3_time='.$cur_game['player3_time'].', player4_time='.$cur_game['player4_time'].', last_modified='.$cur_game['last_modified'].', victor='.$cur_game['victor'].' WHERE guid=\''.$db->escape($data['guid']).'\'') or guifa_error('Unable to update game', __FILE__, __LINE__, $db->error());
             $value['ret'] = 'ok';
         }
     }
