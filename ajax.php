@@ -99,5 +99,6 @@ $value['params'] = $param;
 
 echo json_encode($value);
 
+$db->end_transaction();
 $db->close();
 

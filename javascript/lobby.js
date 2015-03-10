@@ -26,6 +26,7 @@ $(document).ready(function() {
 var lobby = {
   GAME_STATUS_READY:2,
   GAME_STATUS_ACTIVE:3,
+  GAME_STATUS_COMPLETE:4,
   ignoreMap: {},
 
   forceRefresh: function() {
@@ -143,6 +144,9 @@ var lobby = {
         }
       } else if (game.status == lobby.GAME_STATUS_ACTIVE) {
         action.push({id: "goGame", label: "旁观"});
+      }
+      if (game.status == lobby.GAME_STATUS_COMPLETE) {
+        action.push({id: "goGame", label: "回顾"});
       }
       if (action.length == 0) {
         content += "&nbsp;";

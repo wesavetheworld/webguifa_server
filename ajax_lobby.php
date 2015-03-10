@@ -29,7 +29,7 @@ if ($pun_user['is_guest'])
 }
 else if ($action == 'list')
 {
-	$result = $db->query('SELECT * FROM '.$db->prefix.'games WHERE status IN (0,2,3) ORDER BY created DESC LIMIT 50') or guifa_error('Unable to fetch games info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT * FROM '.$db->prefix.'games WHERE status IN (0,2,3,4) ORDER BY created DESC LIMIT 50') or guifa_error('Unable to fetch games info', __FILE__, __LINE__, $db->error());
     if ($db->num_rows($result))
     {
         $games = array();
