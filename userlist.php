@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -11,9 +11,9 @@ require PUN_ROOT.'include/common.php';
 
 
 if ($pun_user['g_read_board'] == '0')
-	message($lang_common['No view']);
+	message($lang_common['No view'], false, '403 Forbidden');
 else if ($pun_user['g_view_users'] == '0')
-	message($lang_common['No permission']);
+	message($lang_common['No permission'], false, '403 Forbidden');
 
 // Load the userlist.php language file
 require PUN_ROOT.'lang/'.$pun_user['language'].'/userlist.php';
@@ -63,7 +63,7 @@ require PUN_ROOT.'header.php';
 
 ?>
 <div class="blockform">
-	<h2><span><?php echo $lang_common['User list'] ?></span></h2>
+	<h2><span><?php echo $lang_search['User search'] ?></span></h2>
 	<div class="box">
 		<form id="userlist" method="get" action="userlist.php">
 			<div class="inform">
@@ -119,9 +119,10 @@ while ($cur_group = $db->fetch_assoc($result))
 </div>
 
 <div id="users1" class="blocktable">
+	<h2><span><?php echo $lang_common['User list'] ?></span></h2>
 	<div class="box">
 		<div class="inbox">
-			<table cellspacing="0">
+			<table>
 			<thead>
 				<tr>
 					<th class="tcl" scope="col"><?php echo $lang_common['Username'] ?></th>

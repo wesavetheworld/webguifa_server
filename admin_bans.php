@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -15,7 +15,7 @@ require PUN_ROOT.'include/common_admin.php';
 
 
 if ($pun_user['g_id'] != PUN_ADMIN && ($pun_user['g_moderator'] != '1' || $pun_user['g_mod_ban_users'] == '0'))
-	message($lang_common['No permission']);
+	message($lang_common['No permission'], false, '403 Forbidden');
 
 // Load the admin_bans.php language file
 require PUN_ROOT.'lang/'.$admin_language.'/admin_bans.php';
@@ -30,7 +30,7 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 		{
 			$user_id = intval($_GET['add_ban']);
 			if ($user_id < 2)
-				message($lang_common['Bad request']);
+				message($lang_common['Bad request'], false, '404 Not Found');
 
 			$result = $db->query('SELECT group_id, username, email FROM '.$db->prefix.'users WHERE id='.$user_id) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 			if ($db->num_rows($result))
@@ -84,13 +84,13 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 	{
 		$ban_id = intval($_GET['edit_ban']);
 		if ($ban_id < 1)
-			message($lang_common['Bad request']);
+			message($lang_common['Bad request'], false, '404 Not Found');
 
 		$result = $db->query('SELECT username, ip, email, message, expire FROM '.$db->prefix.'bans WHERE id='.$ban_id) or error('Unable to fetch ban info', __FILE__, __LINE__, $db->error());
 		if ($db->num_rows($result))
 			list($ban_user, $ban_ip, $ban_email, $ban_message, $ban_expire) = $db->fetch_row($result);
 		else
-			message($lang_common['Bad request']);
+			message($lang_common['Bad request'], false, '404 Not Found');
 
 		$diff = ($pun_user['timezone'] + $pun_user['dst']) * 3600;
 		$ban_expire = ($ban_expire != '') ? gmdate('Y-m-d', $ban_expire + $diff) : '';
@@ -116,7 +116,7 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 <?php endif; ?>				<fieldset>
 						<legend><?php echo $lang_admin_bans['Ban advanced subhead'] ?></legend>
 						<div class="infldset">
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php echo $lang_admin_bans['Username label'] ?></th>
 									<td>
@@ -127,14 +127,14 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 								<tr>
 									<th scope="row"><?php echo $lang_admin_bans['IP label'] ?></th>
 									<td>
-										<input type="text" name="ban_ip" size="45" maxlength="255" value="<?php if (isset($ban_ip)) echo $ban_ip; ?>" tabindex="2" />
+										<input type="text" name="ban_ip" size="45" maxlength="255" value="<?php if (isset($ban_ip)) echo pun_htmlspecialchars($ban_ip); ?>" tabindex="2" />
 										<span><?php echo $lang_admin_bans['IP help'] ?><?php if ($ban_user != '' && isset($user_id)) printf(' '.$lang_admin_bans['IP help link'], '<a href="admin_users.php?ip_stats='.$user_id.'">'.$lang_admin_common['here'].'</a>') ?></span>
 									</td>
 								</tr>
 								<tr>
 									<th scope="row"><?php echo $lang_admin_bans['E-mail label'] ?></th>
 									<td>
-										<input type="text" name="ban_email" size="40" maxlength="80" value="<?php if (isset($ban_email)) echo $ban_email; ?>" tabindex="3" />
+										<input type="text" name="ban_email" size="40" maxlength="80" value="<?php if (isset($ban_email)) echo pun_htmlspecialchars($ban_email); ?>" tabindex="3" />
 										<span><?php echo $lang_admin_bans['E-mail help'] ?></span>
 									</td>
 								</tr>
@@ -147,7 +147,7 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 					<fieldset>
 						<legend><?php echo $lang_admin_bans['Message expiry subhead'] ?></legend>
 						<div class="infldset">
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php echo $lang_admin_bans['Ban message label'] ?></th>
 									<td>
@@ -183,16 +183,16 @@ else if (isset($_POST['add_edit_ban']))
 	confirm_referrer('admin_bans.php');
 
 	$ban_user = pun_trim($_POST['ban_user']);
-	$ban_ip = trim($_POST['ban_ip']);
-	$ban_email = strtolower(trim($_POST['ban_email']));
+	$ban_ip = pun_trim($_POST['ban_ip']);
+	$ban_email = strtolower(pun_trim($_POST['ban_email']));
 	$ban_message = pun_trim($_POST['ban_message']);
-	$ban_expire = trim($_POST['ban_expire']);
+	$ban_expire = pun_trim($_POST['ban_expire']);
 
 	if ($ban_user == '' && $ban_ip == '' && $ban_email == '')
 		message($lang_admin_bans['Must enter message']);
 	else if (strtolower($ban_user) == 'guest')
 		message($lang_admin_bans['Cannot ban guest message']);
-	
+
 	// Make sure we're not banning an admin or moderator
 	if (!empty($ban_user))
 	{
@@ -200,13 +200,13 @@ else if (isset($_POST['add_edit_ban']))
 		if ($db->num_rows($result))
 		{
 			$group_id = $db->result($result);
-			
+
 			if ($group_id == PUN_ADMIN)
 				message(sprintf($lang_admin_bans['User is admin message'], pun_htmlspecialchars($ban_user)));
-	
+
 			$result = $db->query('SELECT g_moderator FROM '.$db->prefix.'groups WHERE g_id='.$group_id) or error('Unable to fetch group info', __FILE__, __LINE__, $db->error());
 			$is_moderator_group = $db->result($result);
-	
+
 			if ($is_moderator_group)
 				message(sprintf($lang_admin_bans['User is mod message'], pun_htmlspecialchars($ban_user)));
 		}
@@ -215,7 +215,7 @@ else if (isset($_POST['add_edit_ban']))
 	// Validate IP/IP range (it's overkill, I know)
 	if ($ban_ip != '')
 	{
-		$ban_ip = preg_replace('/\s{2,}/S', ' ', $ban_ip);
+		$ban_ip = preg_replace('%\s{2,}%S', ' ', $ban_ip);
 		$addresses = explode(' ', $ban_ip);
 		$addresses = array_map('pun_trim', $addresses);
 
@@ -244,7 +244,7 @@ else if (isset($_POST['add_edit_ban']))
 				{
 					$octets[$c] = (strlen($octets[$c]) > 1) ? ltrim($octets[$c], "0") : $octets[$c];
 
-					if ($c > 3 || preg_match('/[^0-9]/', $octets[$c]) || intval($octets[$c]) > 255)
+					if ($c > 3 || preg_match('%[^0-9]%', $octets[$c]) || intval($octets[$c]) > 255)
 						message($lang_admin_bans['Invalid IP message']);
 				}
 
@@ -259,7 +259,7 @@ else if (isset($_POST['add_edit_ban']))
 	require PUN_ROOT.'include/email.php';
 	if ($ban_email != '' && !is_valid_email($ban_email))
 	{
-		if (!preg_match('/^[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$/', $ban_email))
+		if (!preg_match('%^[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,63})$%', $ban_email))
 			message($lang_admin_bans['Invalid e-mail message']);
 	}
 
@@ -308,7 +308,7 @@ else if (isset($_GET['del_ban']))
 
 	$ban_id = intval($_GET['del_ban']);
 	if ($ban_id < 1)
-		message($lang_common['Bad request']);
+		message($lang_common['Bad request'], false, '404 Not Found');
 
 	$db->query('DELETE FROM '.$db->prefix.'bans WHERE id='.$ban_id) or error('Unable to delete ban', __FILE__, __LINE__, $db->error());
 
@@ -330,8 +330,8 @@ else if (isset($_GET['find_ban']))
 	$form = array_map('pun_trim', $form);
 	$conditions = $query_str = array();
 
-	$expire_after = isset($_GET['expire_after']) ? trim($_GET['expire_after']) : '';
-	$expire_before = isset($_GET['expire_before']) ? trim($_GET['expire_before']) : '';
+	$expire_after = isset($_GET['expire_after']) ? pun_trim($_GET['expire_after']) : '';
+	$expire_before = isset($_GET['expire_before']) ? pun_trim($_GET['expire_before']) : '';
 	$order_by = isset($_GET['order_by']) && in_array($_GET['order_by'], array('username', 'ip', 'email', 'expire')) ? 'b.'.$_GET['order_by'] : 'b.username';
 	$direction = isset($_GET['direction']) && $_GET['direction'] == 'DESC' ? 'DESC' : 'ASC';
 
@@ -407,7 +407,7 @@ else if (isset($_GET['find_ban']))
 	<h2><span><?php echo $lang_admin_bans['Results head'] ?></span></h2>
 	<div class="box">
 		<div class="inbox">
-			<table cellspacing="0">
+			<table>
 			<thead>
 				<tr>
 					<th class="tcl" scope="col"><?php echo $lang_admin_bans['Results username head'] ?></th>
@@ -434,8 +434,8 @@ else if (isset($_GET['find_ban']))
 ?>
 				<tr>
 					<td class="tcl"><?php echo ($ban_data['username'] != '') ? pun_htmlspecialchars($ban_data['username']) : '&#160;' ?></td>
-					<td class="tc2"><?php echo ($ban_data['email'] != '') ? $ban_data['email'] : '&#160;' ?></td>
-					<td class="tc3"><?php echo ($ban_data['ip'] != '') ? $ban_data['ip'] : '&#160;' ?></td>
+					<td class="tc2"><?php echo ($ban_data['email'] != '') ? pun_htmlspecialchars($ban_data['email']) : '&#160;' ?></td>
+					<td class="tc3"><?php echo ($ban_data['ip'] != '') ? pun_htmlspecialchars($ban_data['ip']) : '&#160;' ?></td>
 					<td class="tc4"><?php echo $expire ?></td>
 					<td class="tc5"><?php echo ($ban_data['message'] != '') ? pun_htmlspecialchars($ban_data['message']) : '&#160;' ?></td>
 					<td class="tc6"><?php echo ($ban_data['ban_creator_username'] != '') ? '<a href="profile.php?id='.$ban_data['ban_creator'].'">'.pun_htmlspecialchars($ban_data['ban_creator_username']).'</a>' : $lang_admin_bans['Unknown'] ?></td>
@@ -489,7 +489,7 @@ generate_admin_menu('bans');
 					<fieldset>
 						<legend><?php echo $lang_admin_bans['Add ban subhead'] ?></legend>
 						<div class="infldset">
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php echo $lang_admin_bans['Username label'] ?><div><input type="submit" name="add_ban" value="<?php echo $lang_admin_common['Add'] ?>" tabindex="2" /></div></th>
 									<td>
@@ -506,14 +506,14 @@ generate_admin_menu('bans');
 
 		<h2 class="block2"><span><?php echo $lang_admin_bans['Ban search head'] ?></span></h2>
 		<div class="box">
-			<form id="find_band" method="get" action="admin_bans.php">
+			<form id="find_bans" method="get" action="admin_bans.php">
 				<p class="submittop"><input type="submit" name="find_ban" value="<?php echo $lang_admin_bans['Submit search'] ?>" tabindex="3" /></p>
 				<div class="inform">
 					<fieldset>
 						<legend><?php echo $lang_admin_bans['Ban search subhead'] ?></legend>
 						<div class="infldset">
 							<p><?php echo $lang_admin_bans['Ban search info'] ?></p>
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php echo $lang_admin_bans['Username label'] ?></th>
 									<td><input type="text" name="form[username]" size="25" maxlength="25" tabindex="4" /></td>

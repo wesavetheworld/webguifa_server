@@ -1,15 +1,15 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
 
 // The FluxBB version this script updates to
-define('UPDATE_TO', '1.4.5');
+define('UPDATE_TO', '1.5.8');
 
-define('UPDATE_TO_DB_REVISION', 11);
+define('UPDATE_TO_DB_REVISION', 21);
 define('UPDATE_TO_SI_REVISION', 2);
 define('UPDATE_TO_PARSER_REVISION', 2);
 
@@ -129,6 +129,7 @@ $default_lang = $pun_config['o_default_lang'];
 if (!file_exists(PUN_ROOT.'lang/'.$default_lang.'/update.php'))
 	$default_lang = 'English';
 
+require PUN_ROOT.'lang/'.$default_lang.'/common.php';
 require PUN_ROOT.'lang/'.$default_lang.'/update.php';
 
 // Check current version
@@ -253,7 +254,7 @@ function dcr2utf8($src)
 //
 function convert_to_utf8(&$str, $old_charset)
 {
-	if ($str === null || $str == '')
+	if (is_null($str) || $str == '')
 		return false;
 
 	$save = $str;
@@ -265,9 +266,9 @@ function convert_to_utf8(&$str, $old_charset)
 	if ($old_charset != 'UTF-8' && !seems_utf8($str))
 	{
 		if (function_exists('iconv'))
-			$str = iconv($old_charset == 'ISO-8859-1' ? 'WINDOWS-1252' : 'ISO-8859-1', 'UTF-8', $str);
+			$str = iconv(!empty($old_charset) ? $old_charset : 'ISO-8859-1', 'UTF-8', $str);
 		else if (function_exists('mb_convert_encoding'))
-			$str = mb_convert_encoding($str, 'UTF-8', $old_charset == 'ISO-8859-1' ? 'WINDOWS-1252' : 'ISO-8859-1');
+			$str = mb_convert_encoding($str, 'UTF-8', !empty($old_charset) ? $old_charset : 'ISO-8859-1');
 		else if ($old_charset == 'ISO-8859-1')
 			$str = utf8_encode($str);
 	}
@@ -277,8 +278,8 @@ function convert_to_utf8(&$str, $old_charset)
 		$str = html_entity_decode($str, ENT_QUOTES, 'UTF-8');
 
 	// Replace numeric entities
-	$str = preg_replace_callback('/&#([0-9]+);/', 'utf8_callback_1', $str);
-	$str = preg_replace_callback('/&#x([a-f0-9]+);/i', 'utf8_callback_2', $str);
+	$str = preg_replace_callback('%&#([0-9]+);%', 'utf8_callback_1', $str);
+	$str = preg_replace_callback('%&#x([a-f0-9]+);%i', 'utf8_callback_2', $str);
 
 	// Remove "bad" characters
 	$str = remove_bad_characters($str);
@@ -330,7 +331,7 @@ function alter_table_utf8($table)
 	$result = $db->query('SHOW FULL COLUMNS FROM '.$table) or error('Unable to fetch column information', __FILE__, __LINE__, $db->error());
 	while ($cur_column = $db->fetch_assoc($result))
 	{
-		if ($cur_column['Collation'] === null)
+		if (is_null($cur_column['Collation']))
 			continue;
 
 		list($type) = explode('(', $cur_column['Type']);
@@ -339,7 +340,7 @@ function alter_table_utf8($table)
 			$allow_null = ($cur_column['Null'] == 'YES');
 			$collate = (substr($cur_column['Collation'], -3) == 'bin') ? 'utf8_bin' : 'utf8_general_ci';
 
-			$db->alter_field($table, $cur_column['Field'], preg_replace('/'.$type.'/i', $types[$type], $cur_column['Type']), $allow_null, $cur_column['Default'], null, true) or error('Unable to alter field to binary', __FILE__, __LINE__, $db->error());
+			$db->alter_field($table, $cur_column['Field'], preg_replace('%'.$type.'%i', $types[$type], $cur_column['Type']), $allow_null, $cur_column['Default'], null, true) or error('Unable to alter field to binary', __FILE__, __LINE__, $db->error());
 			$db->alter_field($table, $cur_column['Field'], $cur_column['Type'].' CHARACTER SET utf8 COLLATE '.$collate, $allow_null, $cur_column['Default'], null, true) or error('Unable to alter field to utf8', __FILE__, __LINE__, $db->error());
 		}
 	}
@@ -357,8 +358,8 @@ function convert_table_utf8($table, $callback, $old_charset, $key = null, $start
 	$end_at = 0;
 	if ($mysql)
 	{
-		// Only set up the tables if we are doing this in 1 go, or its the first go
-		if ($start_at === null || $start_at == 0)
+		// Only set up the tables if we are doing this in 1 go, or it's the first go
+		if (is_null($start_at) || $start_at == 0)
 		{
 			// Drop any temp table that exists, in-case it's left over from a failed update
 			$db->drop_table($table.'_utf8', true) or error('Unable to drop left over temp table', __FILE__, __LINE__, $db->error());
@@ -374,7 +375,7 @@ function convert_table_utf8($table, $callback, $old_charset, $key = null, $start
 		$db->set_names($old_connection_charset);
 
 		// Move & Convert everything
-		$result = $db->query('SELECT * FROM '.$table.($start_at === null ? '' : ' WHERE '.$key.'>'.$start_at).' ORDER BY '.$key.' ASC'.($start_at === null ? '' : ' LIMIT '.PER_PAGE), false) or error('Unable to select from old table', __FILE__, __LINE__, $db->error());
+		$result = $db->query('SELECT * FROM '.$table.(is_null($start_at) ? '' : ' WHERE '.$key.'>'.$start_at).' ORDER BY '.$key.' ASC'.(is_null($start_at) ? '' : ' LIMIT '.PER_PAGE), false) or error('Unable to select from old table', __FILE__, __LINE__, $db->error());
 
 		// Change back to utf8 mode so we can insert it into the new table
 		$db->set_names('utf8');
@@ -385,21 +386,21 @@ function convert_table_utf8($table, $callback, $old_charset, $key = null, $start
 
 			$temp = array();
 			foreach ($cur_item as $idx => $value)
-				$temp[$idx] = $value === null ? 'NULL' : '\''.$db->escape($value).'\'';
+				$temp[$idx] = is_null($value) ? 'NULL' : '\''.$db->escape($value).'\'';
 
-			$db->query('INSERT INTO '.$table.'_utf8('.implode(',', array_keys($temp)).') VALUES ('.implode(',', array_values($temp)).')') or ($error_callback === null ? error('Unable to insert data to new table', __FILE__, __LINE__, $db->error()) : call_user_func($error_callback, $cur_item));
+			$db->query('INSERT INTO '.$table.'_utf8('.implode(',', array_keys($temp)).') VALUES ('.implode(',', array_values($temp)).')') or (is_null($error_callback) ? error('Unable to insert data to new table', __FILE__, __LINE__, $db->error()) : call_user_func($error_callback, $cur_item));
 
 			$end_at = $cur_item[$key];
 		}
 
 		// If we aren't doing this all in 1 go and $end_at has a value (i.e. we have processed at least 1 row), figure out if we have more to do or not
-		if ($start_at !== null && $end_at > 0)
+		if (!is_null($start_at) && $end_at > 0)
 		{
 			$result = $db->query('SELECT 1 FROM '.$table.' WHERE '.$key.'>'.$end_at.' ORDER BY '.$key.' ASC LIMIT 1') or error('Unable to check for next row', __FILE__, __LINE__, $db->error());
 			$finished = $db->num_rows($result) == 0;
 		}
 
-		// Only swap the tables if we are doing this in 1 go, or its the last go
+		// Only swap the tables if we are doing this in 1 go, or it's the last go
 		if ($finished)
 		{
 			// Delete old table
@@ -416,14 +417,14 @@ function convert_table_utf8($table, $callback, $old_charset, $key = null, $start
 	else
 	{
 		// Convert everything
-		$result = $db->query('SELECT * FROM '.$table.($start_at === null ? '' : ' WHERE '.$key.'>'.$start_at).' ORDER BY '.$key.' ASC'.($start_at === null ? '' : ' LIMIT '.PER_PAGE)) or error('Unable to select from table', __FILE__, __LINE__, $db->error());
+		$result = $db->query('SELECT * FROM '.$table.(is_null($start_at) ? '' : ' WHERE '.$key.'>'.$start_at).' ORDER BY '.$key.' ASC'.(is_null($start_at ) ? '' : ' LIMIT '.PER_PAGE)) or error('Unable to select from table', __FILE__, __LINE__, $db->error());
 		while ($cur_item = $db->fetch_assoc($result))
 		{
 			$cur_item = call_user_func($callback, $cur_item, $old_charset);
 
 			$temp = array();
 			foreach ($cur_item as $idx => $value)
-				$temp[] = $idx.'='.($value === null ? 'NULL' : '\''.$db->escape($value).'\'');
+				$temp[] = $idx.'='.(is_null($value) ? 'NULL' : '\''.$db->escape($value).'\'');
 
 			if (!empty($temp))
 				$db->query('UPDATE '.$table.' SET '.implode(', ', $temp).' WHERE '.$key.'=\''.$db->escape($cur_item[$key]).'\'') or error('Unable to update data', __FILE__, __LINE__, $db->error());
@@ -431,7 +432,7 @@ function convert_table_utf8($table, $callback, $old_charset, $key = null, $start
 			$end_at = $cur_item[$key];
 		}
 
-		if ($start_at !== null && $end_at > 0)
+		if (!is_null($start_at) && $end_at > 0)
 		{
 			$result = $db->query('SELECT 1 FROM '.$table.' WHERE '.$key.'>'.$end_at.' ORDER BY '.$key.' ASC LIMIT 1') or error('Unable to check for next row', __FILE__, __LINE__, $db->error());
 			if ($db->num_rows($result) == 0)
@@ -459,17 +460,59 @@ $query_str = '';
 // Show form
 if (empty($stage))
 {
+	if (file_exists(FORUM_CACHE_DIR.'db_update.lock'))
+	{
+		// Deal with newlines, tabs and multiple spaces
+		$pattern = array("\t", '  ', '  ');
+		$replace = array('&#160; &#160; ', '&#160; ', ' &#160;');
+		$message = str_replace($pattern, $replace, $pun_config['o_maintenance_message']);
+
+?>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php echo $lang_common['lang_identifier'] ?>" lang="<?php echo $lang_common['lang_identifier'] ?>" dir="<?php echo $lang_common['lang_direction'] ?>">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title><?php echo $lang_update['Maintenance'] ?></title>
+<link rel="stylesheet" type="text/css" href="style/<?php echo $default_style ?>.css" />
+</head>
+<body>
+
+<div id="punmaint" class="pun">
+<div class="top-box"><div><!-- Top Corners --></div></div>
+<div class="punwrap">
+
+<div id="brdmain">
+<div class="block">
+	<h2><?php echo $lang_update['Maintenance'] ?></h2>
+	<div class="box">
+		<div class="inbox">
+			<p><?php echo $message ?></p>
+		</div>
+	</div>
+</div>
+</div>
+
+</div>
+<div class="end-box"><div><!-- Bottom Corners --></div></div>
+</div>
+
+</body>
+</html>
+<?php
+
+	}
+	else
+	{
 
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php echo $lang_common['lang_identifier'] ?>" lang="<?php echo $lang_common['lang_identifier'] ?>" dir="<?php echo $lang_common['lang_direction'] ?>">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><?php echo $lang_update['Update'] ?></title>
 <link rel="stylesheet" type="text/css" href="style/<?php echo $default_style ?>.css" />
 </head>
-<body onload="document.getElementById('install').req_db_type.focus();document.getElementById('install').start.disabled=false;">
+<body onload="document.getElementById('install').req_db_pass.focus();document.getElementById('install').start.disabled=false;">
 
 <div id="pundb_update" class="pun">
 <div class="top-box"><div><!-- Top Corners --></div></div>
@@ -488,7 +531,7 @@ if (empty($stage))
 <div class="blockform">
 	<h2><span><?php echo $lang_update['Update'] ?></span></h2>
 	<div class="box">
-		<form method="post" action="db_update.php">
+		<form id="install" method="post" action="db_update.php">
 			<input type="hidden" name="stage" value="start" />
 			<div class="inform">
 				<fieldset>
@@ -497,6 +540,11 @@ if (empty($stage))
 						<p><?php echo $lang_update['Database password info'] ?></p>
 						<p><strong><?php echo $lang_update['Note']; ?></strong> <?php echo $lang_update['Database password note'] ?></p>
 						<label class="required"><strong><?php echo $lang_update['Database password'] ?> <span><?php echo $lang_update['Required'] ?></span></strong><br /><input type="password" id="req_db_pass" name="req_db_pass" /><br /></label>
+						<p><?php echo $lang_update['Maintenance message info'] ?></p>
+						<div class="txtarea">
+							<label class="required"><strong><?php echo $lang_update['Maintenance message'] ?> <span><?php echo $lang_update['Required'] ?></span></strong><br />
+							<textarea name="req_maintenance_message" rows="4" cols="65"><?php echo pun_htmlspecialchars($pun_config['o_maintenance_message']) ?></textarea><br /></label>
+						</div>
 					</div>
 				</fieldset>
 			</div>
@@ -559,6 +607,7 @@ if (empty($stage))
 </html>
 <?php
 
+	}
 	$db->end_transaction();
 	$db->close();
 	exit;
@@ -572,7 +621,7 @@ $lock_error = false;
 // Generate or fetch the UID - this confirms we have a valid admin
 if (isset($_POST['req_db_pass']))
 {
-	$req_db_pass = strtolower(trim($_POST['req_db_pass']));
+	$req_db_pass = strtolower(pun_trim($_POST['req_db_pass']));
 
 	switch ($db_type)
 	{
@@ -602,11 +651,30 @@ if (isset($_POST['req_db_pass']))
 
 		fwrite($fh, $uid);
 		fclose($fh);
+
+		// Update maintenance message
+		if ($_POST['req_maintenance_message'] != '')
+			$maintenance_message = pun_trim(pun_linebreaks($_POST['req_maintenance_message']));
+		else
+		{
+			// Load the admin_options.php language file
+			require PUN_ROOT.'lang/'.$default_lang.'/admin_options.php';
+
+			$maintenance_message = $lang_admin_options['Default maintenance message'];
+		}
+
+		$db->query('UPDATE '.$db->prefix.'config SET conf_value=\''.$db->escape($maintenance_message).'\' WHERE conf_name=\'o_maintenance_message\'') or error('Unable to update board config', __FILE__, __LINE__, $db->error());
+
+		// Regenerate the config cache
+		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
+			require PUN_ROOT.'include/cache.php';
+
+		generate_config_cache();
 	}
 }
 else if (isset($_GET['uid']))
 {
-	$uid = trim($_GET['uid']);
+	$uid = pun_trim($_GET['uid']);
 	if (!$lock || $lock != $uid) // The lock doesn't exist or doesn't match the given UID
 		$lock_error = true;
 }
@@ -645,10 +713,10 @@ switch ($stage)
 		// Add the DST option to the users table
 		$db->add_field('users', 'dst', 'TINYINT(1)', false, 0, 'timezone') or error('Unable to add dst field', __FILE__, __LINE__, $db->error());
 
-		// Add the last_post field to the online table
+		// Add the last_post column to the online table
 		$db->add_field('online', 'last_post', 'INT(10) UNSIGNED', true, null, null) or error('Unable to add last_post field', __FILE__, __LINE__, $db->error());
 
-		// Add the last_search field to the online table
+		// Add the last_search column to the online table
 		$db->add_field('online', 'last_search', 'INT(10) UNSIGNED', true, null, null) or error('Unable to add last_search field', __FILE__, __LINE__, $db->error());
 
 		// Add the last_search column to the users table
@@ -719,14 +787,14 @@ switch ($stage)
 			{
 				// Make an educated guess regarding base_url
 				$base_url  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://';	// protocol
-				$base_url .= preg_replace('/:(80|443)$/', '', $_SERVER['HTTP_HOST']);							// host[:port]
+				$base_url .= preg_replace('%:(80|443)$%', '', $_SERVER['HTTP_HOST']);							// host[:port]
 				$base_url .= str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));							// path
 			}
 
 			if (substr($base_url, -1) == '/')
 				$base_url = substr($base_url, 0, -1);
 
-			$db->query('INSERT INTO '.$db->prefix.'config (conf_name, conf_value) VALUES (\'o_base_url\', \''.$db->escape($base_url).'\')') or error('Unable to insert config value \'o_quote_depth\'', __FILE__, __LINE__, $db->error());
+			$db->query('INSERT INTO '.$db->prefix.'config (conf_name, conf_value) VALUES (\'o_base_url\', \''.$db->escape($base_url).'\')') or error('Unable to insert config value \'o_base_url\'', __FILE__, __LINE__, $db->error());
 		}
 
 		if (strpos($cur_version, '1.2') === 0)
@@ -753,7 +821,7 @@ switch ($stage)
 				$mod_gid = $db->result($result);
 			else
 			{
-				$db->query('INSERT INTO '.$db->prefix.'groups (g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood) VALUES('."'Moderators', 'Moderator', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0)") or error('Unable to add group', __FILE__, __LINE__, $db->error());
+				$db->query('INSERT INTO '.$db->prefix.'groups (g_title, g_user_title, g_moderator, g_mod_edit_users, g_mod_rename_users, g_mod_change_passwords, g_mod_ban_users, g_read_board, g_view_users, g_post_replies, g_post_topics, g_edit_posts, g_delete_posts, g_delete_topics, g_set_title, g_search, g_search_users, g_send_email, g_post_flood, g_search_flood, g_email_flood, g_report_flood) VALUES('."'Moderators', 'Moderator', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0)") or error('Unable to add group', __FILE__, __LINE__, $db->error());
 				$mod_gid = $db->insert_id();
 			}
 
@@ -907,7 +975,7 @@ switch ($stage)
 		if (!$db->add_index('users', 'username_idx', array($field), true))
 			$db->add_index('users', 'username_idx', array($field)) or error('Unable to add username_idx field', __FILE__, __LINE__, $db->error());
 
-		// Add g_view_users field to groups table
+		// Add g_view_users column to groups table
 		$db->add_field('groups', 'g_view_users', 'TINYINT(1)', false, 1, 'g_read_board') or error('Unable to add g_view_users field', __FILE__, __LINE__, $db->error());
 
 		// Add the last_email_sent column to the users table and the g_send_email and
@@ -916,9 +984,14 @@ switch ($stage)
 		$db->add_field('groups', 'g_send_email', 'TINYINT(1)', false, 1, 'g_search_users') or error('Unable to add g_send_email field', __FILE__, __LINE__, $db->error());
 		$db->add_field('groups', 'g_email_flood', 'SMALLINT(6)', false, 60, 'g_search_flood') or error('Unable to add g_email_flood field', __FILE__, __LINE__, $db->error());
 
-		// Set non-default g_send_email and g_flood_email values properly
+		// Add the last_report_sent column to the users table and the g_report_flood
+		// column to the groups table
+		$db->add_field('users', 'last_report_sent', 'INT(10) UNSIGNED', true, null, 'last_email_sent') or error('Unable to add last_report_sent field', __FILE__, __LINE__, $db->error());
+		$db->add_field('groups', 'g_report_flood', 'SMALLINT(6)', false, 60, 'g_email_flood') or error('Unable to add g_report_flood field', __FILE__, __LINE__, $db->error());
+
+		// Set non-default g_send_email, g_flood_email and g_flood_report values properly
 		$db->query('UPDATE '.$db->prefix.'groups SET g_send_email = 0 WHERE g_id = 3') or error('Unable to update group email permissions', __FILE__, __LINE__, $db->error());
-		$db->query('UPDATE '.$db->prefix.'groups SET g_email_flood = 0 WHERE g_id IN (1,2,3)') or error('Unable to update group email permissions', __FILE__, __LINE__, $db->error());
+		$db->query('UPDATE '.$db->prefix.'groups SET g_email_flood = 0, g_report_flood = 0 WHERE g_id IN (1,2,3)') or error('Unable to update group email permissions', __FILE__, __LINE__, $db->error());
 
 		// Add the auto notify/subscription option to the users table
 		$db->add_field('users', 'auto_notify', 'TINYINT(1)', false, 0, 'notify_with_post') or error('Unable to add auto_notify field', __FILE__, __LINE__, $db->error());
@@ -946,13 +1019,23 @@ switch ($stage)
 		$db->add_field('users', 'time_format', 'TINYINT(1)', false, 0, 'dst') or error('Unable to add time_format field', __FILE__, __LINE__, $db->error());
 		$db->add_field('users', 'date_format', 'TINYINT(1)', false, 0, 'dst') or error('Unable to add date_format field', __FILE__, __LINE__, $db->error());
 
-		// Change the search_data field to mediumtext
+		// Change the search_data column to mediumtext
 		$db->alter_field('search_cache', 'search_data', 'MEDIUMTEXT', true) or error('Unable to alter search_data field', __FILE__, __LINE__, $db->error());
 
-		// Incase we had the fulltext search extension installed (1.3-legacy), remove it
+		// Add the group promotion columns to the groups table
+		$db->add_field('groups', 'g_promote_min_posts', 'INT(10) UNSIGNED', false, 0, 'g_user_title') or error('Unable to add g_promote_min_posts field', __FILE__, __LINE__, $db->error());
+		$db->add_field('groups', 'g_promote_next_group', 'INT(10) UNSIGNED', false, 0, 'g_promote_min_posts') or error('Unable to add g_promote_next_group field', __FILE__, __LINE__, $db->error());
+
+		// Add a field for the per-group permission to post links
+		$db->add_field('groups', 'g_post_links', 'TINYINT(1)', false, 1, 'g_delete_topics') or error('Unable to add per-group permission to post links', __FILE__, __LINE__, $db->error());
+
+		// Add a field for the per-group permission to promote users to the next auto-promote group
+		$db->add_field('groups', 'g_mod_promote_users', 'TINYINT(1)', false, 0, 'g_mod_ban_users') or error('Unable to add per-group permission to promote users', __FILE__, __LINE__, $db->error());
+
+		// In case we had the fulltext search extension installed (1.3-legacy), remove it
 		$db->drop_index('topics', 'subject_idx') or error('Unable to drop subject_idx index', __FILE__, __LINE__, $db->error());
 		$db->drop_index('posts', 'message_idx') or error('Unable to drop message_idx index', __FILE__, __LINE__, $db->error());
-		// Incase we had the fulltext search mod installed (1.2), remove it
+		// In case we had the fulltext search mod installed (1.2), remove it
 		$db->drop_index('topics', 'subject_fulltext_search') or error('Unable to drop subject_fulltext_search index', __FILE__, __LINE__, $db->error());
 		$db->drop_index('posts', 'message_fulltext_search') or error('Unable to drop message_fulltext_search index', __FILE__, __LINE__, $db->error());
 
@@ -1086,6 +1169,18 @@ switch ($stage)
 		if ($pun_config['o_default_style'] != $default_style)
 			$db->query('UPDATE '.$db->prefix.'config SET conf_value = \''.$db->escape($default_style).'\' WHERE conf_name = \'o_default_style\'') or error('Unable to update default style config', __FILE__, __LINE__, $db->error());
 
+		// For MySQL(i) without InnoDB, change the engine of the online table (for performance reasons)
+		if ($db_type == 'mysql' || $db_type == 'mysqli')
+			$db->query('ALTER TABLE '.$db->prefix.'online ENGINE = MyISAM') or error('Unable to change engine type of online table to MyISAM', __FILE__, __LINE__, $db->error());
+
+		// Remove config option o_ranks
+		if (array_key_exists('o_ranks', $pun_config))
+			$db->query('DELETE FROM '.$db->prefix.'config WHERE conf_name=\'o_ranks\'') or error('Unable to remove config value \'o_ranks\'', __FILE__, __LINE__, $db->error());
+
+		// Remove the ranks table
+		if ($db->table_exists('ranks'))
+			$db->drop_table('ranks') or error('Unable to drop ranks table', __FILE__, __LINE__, $db->error());
+
 		// Should we do charset conversion or not?
 		if (strpos($cur_version, '1.2') === 0 && isset($_POST['convert_charset']))
 			$query_str = '?stage=conv_bans&req_old_charset='.$old_charset;
@@ -1190,6 +1285,7 @@ switch ($stage)
 
 			convert_to_utf8($cur_item['forum_name'], $old_charset);
 			convert_to_utf8($cur_item['forum_desc'], $old_charset);
+			convert_to_utf8($cur_item['last_poster'], $old_charset);
 
 			if (!empty($moderators_utf8))
 				$cur_item['moderators'] = serialize($moderators_utf8);
@@ -1244,7 +1340,7 @@ switch ($stage)
 
 	// Convert posts
 	case 'conv_posts':
-		$query_str = '?stage=conv_ranks&req_old_charset='.$old_charset;
+		$query_str = '?stage=conv_reports&req_old_charset='.$old_charset;
 
 		function _conv_posts($cur_item, $old_charset)
 		{
@@ -1263,24 +1359,6 @@ switch ($stage)
 
 		if ($end_at !== true)
 			$query_str = '?stage=conv_posts&req_old_charset='.$old_charset.'&start_at='.$end_at;
-
-		break;
-
-
-	// Convert ranks
-	case 'conv_ranks':
-		$query_str = '?stage=conv_reports&req_old_charset='.$old_charset;
-
-		echo sprintf($lang_update['Converting'], $lang_update['ranks']).'<br />'."\n";
-
-		function _conv_ranks($cur_item, $old_charset)
-		{
-			convert_to_utf8($cur_item['rank'], $old_charset);
-
-			return $cur_item;
-		}
-
-		convert_table_utf8($db->prefix.'ranks', '_conv_ranks', $old_charset, 'id');
 
 		break;
 
@@ -1458,14 +1536,14 @@ switch ($stage)
 					$errors[$id][] = $lang_update['Username too long error'];
 				else if (!strcasecmp($username, 'Guest'))
 					$errors[$id][] = $lang_update['Username Guest reserved error'];
-				else if (preg_match('/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/', $username) || preg_match('/((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))/', $username))
+				else if (preg_match('%[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}%', $username) || preg_match('%((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))%', $username))
 					$errors[$id][] = $lang_update['Username IP format error'];
 				else if ((strpos($username, '[') !== false || strpos($username, ']') !== false) && strpos($username, '\'') !== false && strpos($username, '"') !== false)
 					$errors[$id][] = $lang_update['Username bad characters error'];
-				else if (preg_match('/(?:\[\/?(?:b|u|s|ins|del|em|i|h|colou?r|quote|code|img|url|email|list|\*)\]|\[(?:img|url|quote|list)=)/i', $username))
+				else if (preg_match('%(?:\[/?(?:b|u|s|ins|del|em|i|h|colou?r|quote|code|img|url|email|list|\*)\]|\[(?:img|url|quote|list)=)%i', $username))
 					$errors[$id][] = $lang_update['Username BBCode error'];
 
-				$result = $db->query('SELECT username FROM '.$db->prefix.'users WHERE (UPPER(username)=UPPER(\''.$db->escape($username).'\') OR UPPER(username)=UPPER(\''.$db->escape(ucp_preg_replace('/[^\p{L}\p{N}]/u', '', $username)).'\')) AND id>1') or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+				$result = $db->query('SELECT username FROM '.$db->prefix.'users WHERE (UPPER(username)=UPPER(\''.$db->escape($username).'\') OR UPPER(username)=UPPER(\''.$db->escape(ucp_preg_replace('%[^\p{L}\p{N}]%u', '', $username)).'\')) AND id>1') or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 
 				if ($db->num_rows($result))
 				{
@@ -1480,7 +1558,7 @@ switch ($stage)
 
 					$temp = array();
 					foreach ($cur_user as $idx => $value)
-						$temp[$idx] = $value === null ? 'NULL' : '\''.$db->escape($value).'\'';
+						$temp[$idx] = is_null($value) ? 'NULL' : '\''.$db->escape($value).'\'';
 
 					// Insert the renamed user
 					$db->query('INSERT INTO '.$db->prefix.'users('.implode(',', array_keys($temp)).') VALUES ('.implode(',', array_values($temp)).')') or error('Unable to insert data to new table', __FILE__, __LINE__, $db->error());
@@ -1535,7 +1613,7 @@ switch ($stage)
 					$mail_message = str_replace('<base_url>', get_base_url().'/', $mail_message);
 					$mail_message = str_replace('<old_username>', $old_username, $mail_message);
 					$mail_message = str_replace('<new_username>', $username, $mail_message);
-					$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'].' Mailer', $mail_message);
+					$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message);
 
 					pun_mail($cur_user['email'], $mail_subject, $mail_message);
 
@@ -1551,7 +1629,7 @@ switch ($stage)
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php echo $lang_common['lang_identifier'] ?>" lang="<?php echo $lang_common['lang_identifier'] ?>" dir="<?php echo $lang_common['lang_direction'] ?>">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><?php echo $lang_update['Update'] ?></title>
@@ -1788,7 +1866,7 @@ foreach ($errors[$id] as $cur_error)
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" dir="ltr">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?php echo $lang_common['lang_identifier'] ?>" lang="<?php echo $lang_common['lang_identifier'] ?>" dir="<?php echo $lang_common['lang_direction'] ?>">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <title><?php echo $lang_update['Update'] ?></title>
@@ -1828,4 +1906,4 @@ $db->end_transaction();
 $db->close();
 
 if ($query_str != '')
-	exit('<script type="text/javascript">window.location="db_update.php'.$query_str.'&uid='.$uid.'"</script><noscript>'.sprintf($lang_update['JavaScript disabled'], sprintf('<a href="db_update.php'.$query_str.'&uid='.$uid.'">%s</a>', $lang_update['Click here to continue'])).'</noscript>');
+	exit('<script type="text/javascript">window.location="db_update.php'.$query_str.'&uid='.$uid.'"</script><noscript><meta http-equiv="refresh" content="0;url=db_update.php'.$query_str.'&uid='.$uid.'" /></noscript>');

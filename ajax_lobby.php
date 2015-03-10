@@ -61,6 +61,7 @@ else if ($action == 'list')
         }
 		$value['game_list'] = $games;
     }
+
     $value['ret'] = 'ok';
 }
 else if ($action == 'create')
@@ -156,5 +157,6 @@ if ($value['ret'] == 'error')
 
 echo json_encode($value);
 
+$db->end_transaction();
 $db->close();
 

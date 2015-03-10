@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -24,7 +24,7 @@ class DBLayer
 	var $error_msg = 'Unknown';
 
 	var $datatype_transformations = array(
-		'/^SERIAL$/'	=>	'INT(10) UNSIGNED AUTO_INCREMENT'
+		'%^SERIAL$%'	=>	'INT(10) UNSIGNED AUTO_INCREMENT'
 	);
 
 
@@ -211,7 +211,7 @@ class DBLayer
 
 		return array(
 			'name'		=> 'MySQL Improved',
-			'version'	=> preg_replace('/^([^-]+).*$/', '\\1', $this->result($result))
+			'version'	=> preg_replace('%^([^-]+).*$%', '\\1', $this->result($result))
 		);
 	}
 
@@ -310,7 +310,7 @@ class DBLayer
 
 	function rename_table($old_table, $new_table, $no_prefix = false)
 	{
-		// If there new table exists and the old one doesn't, then we're happy
+		// If the new table exists and the old one doesn't, then we're happy
 		if ($this->table_exists($new_table, $no_prefix) && !$this->table_exists($old_table, $no_prefix))
 			return true;
 
@@ -325,10 +325,10 @@ class DBLayer
 
 		$field_type = preg_replace(array_keys($this->datatype_transformations), array_values($this->datatype_transformations), $field_type);
 
-		if ($default_value !== null && !is_int($default_value) && !is_float($default_value))
+		if (!is_null($default_value) && !is_int($default_value) && !is_float($default_value))
 			$default_value = '\''.$this->escape($default_value).'\'';
 
-		return $this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' ADD '.$field_name.' '.$field_type.($allow_null ? ' ' : ' NOT NULL').($default_value !== null ? ' DEFAULT '.$default_value : ' ').($after_field != null ? ' AFTER '.$after_field : '')) ? true : false;
+		return $this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' ADD '.$field_name.' '.$field_type.($allow_null ? '' : ' NOT NULL').(!is_null($default_value) ? ' DEFAULT '.$default_value : '').(!is_null($after_field) ? ' AFTER '.$after_field : '')) ? true : false;
 	}
 
 
@@ -339,10 +339,10 @@ class DBLayer
 
 		$field_type = preg_replace(array_keys($this->datatype_transformations), array_values($this->datatype_transformations), $field_type);
 
-		if ($default_value !== null && !is_int($default_value) && !is_float($default_value))
+		if (!is_null($default_value) && !is_int($default_value) && !is_float($default_value))
 			$default_value = '\''.$this->escape($default_value).'\'';
 
-		return $this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' MODIFY '.$field_name.' '.$field_type.($allow_null ? ' ' : ' NOT NULL').($default_value !== null ? ' DEFAULT '.$default_value : ' ').($after_field != null ? ' AFTER '.$after_field : '')) ? true : false;
+		return $this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' MODIFY '.$field_name.' '.$field_type.($allow_null ? '' : ' NOT NULL').(!is_null($default_value) ? ' DEFAULT '.$default_value : '').(!is_null($after_field) ? ' AFTER '.$after_field : '')) ? true : false;
 	}
 
 

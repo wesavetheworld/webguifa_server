@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -20,20 +20,14 @@ function generate_config_cache()
 
 	// Get the forum config from the DB
 	$result = $db->query('SELECT * FROM '.$db->prefix.'config', true) or error('Unable to fetch forum config', __FILE__, __LINE__, $db->error());
+
+	$output = array();
 	while ($cur_config_item = $db->fetch_row($result))
 		$output[$cur_config_item[0]] = $cur_config_item[1];
 
 	// Output config as PHP code
-	$fh = @fopen(FORUM_CACHE_DIR.'cache_config.php', 'wb');
-	if (!$fh)
-		error('Unable to write configuration cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
-
-	fwrite($fh, '<?php'."\n\n".'define(\'PUN_CONFIG_LOADED\', 1);'."\n\n".'$pun_config = '.var_export($output, true).';'."\n\n".'?>');
-
-	fclose($fh);
-
-	if (function_exists('apc_delete_file'))
-		@apc_delete_file(FORUM_CACHE_DIR.'cache_config.php');
+	$content = '<?php'."\n\n".'define(\'PUN_CONFIG_LOADED\', 1);'."\n\n".'$pun_config = '.var_export($output, true).';'."\n\n".'?>';
+	fluxbb_write_cache_file('cache_config.php', $content);
 }
 
 
@@ -52,44 +46,8 @@ function generate_bans_cache()
 		$output[] = $cur_ban;
 
 	// Output ban list as PHP code
-	$fh = @fopen(FORUM_CACHE_DIR.'cache_bans.php', 'wb');
-	if (!$fh)
-		error('Unable to write bans cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
-
-	fwrite($fh, '<?php'."\n\n".'define(\'PUN_BANS_LOADED\', 1);'."\n\n".'$pun_bans = '.var_export($output, true).';'."\n\n".'?>');
-
-	fclose($fh);
-
-	if (function_exists('apc_delete_file'))
-		@apc_delete_file(FORUM_CACHE_DIR.'cache_bans.php');
-}
-
-
-//
-// Generate the ranks cache PHP script
-//
-function generate_ranks_cache()
-{
-	global $db;
-
-	// Get the rank list from the DB
-	$result = $db->query('SELECT * FROM '.$db->prefix.'ranks ORDER BY min_posts', true) or error('Unable to fetch rank list', __FILE__, __LINE__, $db->error());
-
-	$output = array();
-	while ($cur_rank = $db->fetch_assoc($result))
-		$output[] = $cur_rank;
-
-	// Output ranks list as PHP code
-	$fh = @fopen(FORUM_CACHE_DIR.'cache_ranks.php', 'wb');
-	if (!$fh)
-		error('Unable to write ranks cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
-
-	fwrite($fh, '<?php'."\n\n".'define(\'PUN_RANKS_LOADED\', 1);'."\n\n".'$pun_ranks = '.var_export($output, true).';'."\n\n".'?>');
-
-	fclose($fh);
-
-	if (function_exists('apc_delete_file'))
-		@apc_delete_file(FORUM_CACHE_DIR.'cache_ranks.php');
+	$content = '<?php'."\n\n".'define(\'PUN_BANS_LOADED\', 1);'."\n\n".'$pun_bans = '.var_export($output, true).';'."\n\n".'?>';
+	fluxbb_write_cache_file('cache_bans.php', $content);
 }
 
 
@@ -98,7 +56,7 @@ function generate_ranks_cache()
 //
 function generate_quickjump_cache($group_id = false)
 {
-	global $db, $lang_common, $pun_user;
+	global $db, $lang_common;
 
 	$groups = array();
 
@@ -115,7 +73,6 @@ function generate_quickjump_cache($group_id = false)
 	{
 		// A group_id was not supplied, so we generate the quick jump cache for all groups
 		$result = $db->query('SELECT g_id, g_read_board FROM '.$db->prefix.'groups') or error('Unable to fetch user group list', __FILE__, __LINE__, $db->error());
-		$num_groups = $db->num_rows($result);
 
 		while ($row = $db->fetch_row($result))
 			$groups[$row[0]] = $row[1];
@@ -125,10 +82,6 @@ function generate_quickjump_cache($group_id = false)
 	foreach ($groups as $group_id => $read_board)
 	{
 		// Output quick jump as PHP code
-		$fh = @fopen(FORUM_CACHE_DIR.'cache_quickjump_'.$group_id.'.php', 'wb');
-		if (!$fh)
-			error('Unable to write quick jump cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
-
 		$output = '<?php'."\n\n".'if (!defined(\'PUN\')) exit;'."\n".'define(\'PUN_QJ_LOADED\', 1);'."\n".'$forum_id = isset($forum_id) ? $forum_id : 0;'."\n\n".'?>';
 
 		if ($read_board == '1')
@@ -155,16 +108,11 @@ function generate_quickjump_cache($group_id = false)
 					$output .= "\t\t\t\t\t\t\t".'<option value="'.$cur_forum['fid'].'"<?php echo ($forum_id == '.$cur_forum['fid'].') ? \' selected="selected"\' : \'\' ?>>'.pun_htmlspecialchars($cur_forum['forum_name']).$redirect_tag.'</option>'."\n";
 				}
 
-				$output .= "\t\t\t\t\t\t".'</optgroup>'."\n\t\t\t\t\t".'</select>'."\n\t\t\t\t\t".'<input type="submit" value="<?php echo $lang_common[\'Go\'] ?>" accesskey="g" />'."\n\t\t\t\t\t".'</label></div>'."\n\t\t\t\t".'</form>'."\n";
+				$output .= "\t\t\t\t\t\t".'</optgroup>'."\n\t\t\t\t\t".'</select></label>'."\n\t\t\t\t\t".'<input type="submit" value="<?php echo $lang_common[\'Go\'] ?>" accesskey="g" />'."\n\t\t\t\t\t".'</div>'."\n\t\t\t\t".'</form>'."\n";
 			}
 		}
 
-		fwrite($fh, $output);
-
-		fclose($fh);
-
-		if (function_exists('apc_delete_file'))
-			@apc_delete_file(FORUM_CACHE_DIR.'cache_quickjump_'.$group_id.'.php');
+		fluxbb_write_cache_file('cache_quickjump_'.$group_id.'.php', $output);
 	}
 }
 
@@ -183,20 +131,12 @@ function generate_censoring_cache()
 	for ($i = 0; $i < $num_words; $i++)
 	{
 		list($search_for[$i], $replace_with[$i]) = $db->fetch_row($result);
-		$search_for[$i] = '/(?<=[^\p{L}\p{N}])('.str_replace('\*', '[\p{L}\p{N}]*?', preg_quote($search_for[$i], '/')).')(?=[^\p{L}\p{N}])/iu';
+		$search_for[$i] = '%(?<=[^\p{L}\p{N}])('.str_replace('\*', '[\p{L}\p{N}]*?', preg_quote($search_for[$i], '%')).')(?=[^\p{L}\p{N}])%iu';
 	}
 
 	// Output censored words as PHP code
-	$fh = @fopen(FORUM_CACHE_DIR.'cache_censoring.php', 'wb');
-	if (!$fh)
-		error('Unable to write censoring cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
-
-	fwrite($fh, '<?php'."\n\n".'define(\'PUN_CENSOR_LOADED\', 1);'."\n\n".'$search_for = '.var_export($search_for, true).';'."\n\n".'$replace_with = '.var_export($replace_with, true).';'."\n\n".'?>');
-
-	fclose($fh);
-
-	if (function_exists('apc_delete_file'))
-		@apc_delete_file(FORUM_CACHE_DIR.'cache_censoring.php');
+	$content = '<?php'."\n\n".'define(\'PUN_CENSOR_LOADED\', 1);'."\n\n".'$search_for = '.var_export($search_for, true).';'."\n\n".'$replace_with = '.var_export($replace_with, true).';'."\n\n".'?>';
+	fluxbb_write_cache_file('cache_censoring.php', $content);
 }
 
 
@@ -223,16 +163,8 @@ function generate_stopwords_cache()
 	$stopwords = array_filter($stopwords);
 
 	// Output stopwords as PHP code
-	$fh = @fopen(FORUM_CACHE_DIR.'cache_stopwords.php', 'wb');
-	if (!$fh)
-		error('Unable to write stopwords cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
-
-	fwrite($fh, '<?php'."\n\n".'$cache_id = \''.generate_stopwords_cache_id().'\';'."\n".'if ($cache_id != generate_stopwords_cache_id()) return;'."\n\n".'define(\'PUN_STOPWORDS_LOADED\', 1);'."\n\n".'$stopwords = '.var_export($stopwords, true).';'."\n\n".'?>');
-
-	fclose($fh);
-
-	if (function_exists('apc_delete_file'))
-		@apc_delete_file(FORUM_CACHE_DIR.'cache_stopwords.php');
+	$content = '<?php'."\n\n".'$cache_id = \''.generate_stopwords_cache_id().'\';'."\n".'if ($cache_id != generate_stopwords_cache_id()) return;'."\n\n".'define(\'PUN_STOPWORDS_LOADED\', 1);'."\n\n".'$stopwords = '.var_export($stopwords, true).';'."\n\n".'?>';
+	fluxbb_write_cache_file('cache_stopwords.php', $content);
 }
 
 
@@ -252,16 +184,49 @@ function generate_users_info_cache()
 	$stats['last_user'] = $db->fetch_assoc($result);
 
 	// Output users info as PHP code
-	$fh = @fopen(FORUM_CACHE_DIR.'cache_users_info.php', 'wb');
+	$content = '<?php'."\n\n".'define(\'PUN_USERS_INFO_LOADED\', 1);'."\n\n".'$stats = '.var_export($stats, true).';'."\n\n".'?>';
+	fluxbb_write_cache_file('cache_users_info.php', $content);
+}
+
+
+//
+// Generate the admins cache PHP script
+//
+function generate_admins_cache()
+{
+	global $db;
+
+	// Get admins from the DB
+	$result = $db->query('SELECT id FROM '.$db->prefix.'users WHERE group_id='.PUN_ADMIN) or error('Unable to fetch users info', __FILE__, __LINE__, $db->error());
+
+	$output = array();
+	while ($row = $db->fetch_row($result))
+		$output[] = $row[0];
+
+	// Output admin list as PHP code
+	$content = '<?php'."\n\n".'define(\'PUN_ADMINS_LOADED\', 1);'."\n\n".'$pun_admins = '.var_export($output, true).';'."\n\n".'?>';
+	fluxbb_write_cache_file('cache_admins.php', $content);
+}
+
+
+//
+// Safely write out a cache file.
+//
+function fluxbb_write_cache_file($file, $content)
+{
+	$fh = @fopen(FORUM_CACHE_DIR.$file, 'wb');
 	if (!$fh)
-		error('Unable to write users info cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+		error('Unable to write cache file '.pun_htmlspecialchars($file).' to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
 
-	fwrite($fh, '<?php'."\n\n".'define(\'PUN_USERS_INFO_LOADED\', 1);'."\n\n".'$stats = '.var_export($stats, true).';'."\n\n".'?>');
+	flock($fh, LOCK_EX);
+	ftruncate($fh, 0);
 
+	fwrite($fh, $content);
+
+	flock($fh, LOCK_UN);
 	fclose($fh);
 
-	if (function_exists('apc_delete_file'))
-		@apc_delete_file(FORUM_CACHE_DIR.'cache_users_info.php');
+	fluxbb_invalidate_cached_file(FORUM_CACHE_DIR.$file);
 }
 
 
@@ -275,8 +240,21 @@ function clear_feed_cache()
 	{
 		if (substr($entry, 0, 10) == 'cache_feed' && substr($entry, -4) == '.php')
 			@unlink(FORUM_CACHE_DIR.$entry);
+			fluxbb_invalidate_cached_file(FORUM_CACHE_DIR.$entry);
 	}
 	$d->close();
+}
+
+
+//
+// Invalidate updated php files that are cached by an opcache
+//
+function fluxbb_invalidate_cached_file($file)
+{
+	if (function_exists('opcache_invalidate'))
+		opcache_invalidate($file, true);
+	elseif (function_exists('apc_delete_file'))
+		@apc_delete_file($file);
 }
 
 

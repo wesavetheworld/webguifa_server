@@ -17,7 +17,9 @@ $lang_common = array(
 'No permission'						=>	'You do not have permission to access this page.',
 'Bad referrer'						=>	'Bad HTTP_REFERER. You were referred to this page from an unauthorized source. If the problem persists please make sure that \'Base URL\' is correctly set in Admin/Options and that you are visiting the forum by navigating to that URL. More information regarding the referrer check can be found in the FluxBB documentation.',
 'No cookie'							=>	'You appear to have logged in successfully, however a cookie has not been set. Please check your settings and if applicable, enable cookies for this website.',
-'Pun include error'					=>	'Unable to process user include %s from template %s. There is no such file in neither the template directory nor in the user include directory.',
+'Pun include extension'  			=>	'Unable to process user include %s from template %s. "%s" files are not allowed',
+'Pun include directory'				=>	'Unable to process user include %s from template %s. Directory traversal is not allowed',
+'Pun include error'					=>	'Unable to process user include %s from template %s. There is no such file in neither the template directory nor in the user include directory',
 
 // Miscellaneous
 'Announcement'						=>	'Announcement',
@@ -41,7 +43,7 @@ $lang_common = array(
 'Required'							=>	'(Required)',
 'required field'					=>	'is a required field in this form.', // For javascript form validation
 'Last post'							=>	'Last post',
-'by'								=>	'by', // As in last post by someuser
+'by'								=>	'by', // As in last post by some user
 'New posts'							=>	'New posts', // The link that leads to the first new post
 'New posts info'					=>	'Go to the first new post in this topic.', // The popup text for new posts links
 'Username'							=>	'Username',
@@ -59,17 +61,17 @@ $lang_common = array(
 'Pages'								=>	'Pages:',
 'Page'								=>	'Page %s',
 'BBCode'							=>	'BBCode:', // You probably shouldn't change this
+'url tag'							=>	'[url] tag:',
 'img tag'							=>	'[img] tag:',
 'Smilies'							=>	'Smilies:',
 'and'								=>	'and',
 'Image link'						=>	'image', // This is displayed (i.e. <image>) instead of images when "Show images" is disabled in the profile
 'wrote'								=>	'wrote:', // For [quote]'s
-'Mailer'							=>	'Mailer', // As in "MyForums Mailer" in the signature of outgoing emails
+'Mailer'							=>	'%s Mailer', // As in "MyForums Mailer" in the signature of outgoing emails
 'Important information'				=>	'Important information',
 'Write message legend'				=>	'Write your message and submit',
 'Previous'							=>	'Previous',
 'Next'								=>	'Next',
-'Forum index'						=>	'Forum index',
 'Spacer'							=>	'…', // Ellipsis for paginate
 
 // Title
@@ -86,7 +88,8 @@ $lang_common = array(
 'BBCode error invalid self-nesting'	=>	'[%s] was opened within itself, this is not allowed',
 'BBCode error no closing tag'		=>	'[%1$s] was found without a matching [/%1$s]',
 'BBCode error empty attribute'		=>	'[%s] tag had an empty attribute section',
-'BBCode code problem'				=>	'There is a problem with your [code] tags',
+'BBCode error tag not allowed'		=>	'You are not allowed to use [%s] tags',
+'BBCode error tag url not allowed'	=>	'You are not allowed to post links',
 'BBCode list size error'			=>	'Your list was too long to parse, please make it smaller!',
 
 // Stuff for the navigator (top of every page)
@@ -120,6 +123,7 @@ $lang_common = array(
 'Jump to'							=>	'Jump to',
 'Go'								=>	' Go ', // Submit button in forum jump
 'Moderate topic'					=>	'Moderate topic',
+'All'					=>	'All',
 'Move topic'						=>	'Move topic',
 'Open topic'						=>	'Open topic',
 'Close topic'						=>	'Close topic',
@@ -137,24 +141,6 @@ $lang_common = array(
 'Query'								=>	'Query',
 'Total query time'					=>	'Total query time: %s',
 
-// Email related notifications
-'New user notification'				=>	'Alert - New registration',
-'New user message'					=>	'User \'%s\' registered in the forums at %s',
-'Banned email notification'			=>	'Alert - Banned email detected',
-'Banned email register message'		=>	'User \'%s\' registered with banned email address: %s',
-'Banned email change message'		=>	'User \'%s\' changed to banned email address: %s',
-'Banned email post message'			=>	'User \'%s\' posted with banned email address: %s',
-'Duplicate email notification'		=>	'Alert - Duplicate email detected',
-'Duplicate email register message'	=>	'User \'%s\' registered with an email address that also belongs to: %s',
-'Duplicate email change message'	=>	'User \'%s\' changed to an email address that also belongs to: %s',
-'Report notification'				=>	'Report(%d) - \'%s\'',
-'Report message 1'					=>	'User \'%s\' has reported the following message: %s',
-'Report message 2'					=>	'Reason: %s',
-
-'User profile'						=>	'User profile: %s',
-'Post URL'							=>	'Post URL: %s',
-'Email signature'					=>	'Forum Mailer'."\n".'(Do not reply to this message)',
-
 // For extern.php RSS feed
 'RSS description'					=>	'The most recent topics at %s.',
 'RSS description topic'				=>	'The most recent posts in %s.',
@@ -169,5 +155,14 @@ $lang_common = array(
 // Admin related stuff in the header
 'New reports'						=>	'There are new reports',
 'Maintenance mode enabled'			=>	'Maintenance mode is enabled!',
+
+// Units for file sizes
+'Size unit B'						=>	'%s B',
+'Size unit KiB'						=>	'%s KiB',
+'Size unit MiB'						=>	'%s MiB',
+'Size unit GiB'						=>	'%s GiB',
+'Size unit TiB'						=>	'%s TiB',
+'Size unit PiB'						=>	'%s PiB',
+'Size unit EiB'						=>	'%s EiB',
 
 );

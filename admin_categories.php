@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -15,7 +15,7 @@ require PUN_ROOT.'include/common_admin.php';
 
 
 if ($pun_user['g_id'] != PUN_ADMIN)
-	message($lang_common['No permission']);
+	message($lang_common['No permission'], false, '403 Forbidden');
 
 // Load the admin_categories.php language file
 require PUN_ROOT.'lang/'.$admin_language.'/admin_categories.php';
@@ -41,7 +41,7 @@ else if (isset($_POST['del_cat']) || isset($_POST['del_cat_comply']))
 
 	$cat_to_delete = intval($_POST['cat_to_delete']);
 	if ($cat_to_delete < 1)
-		message($lang_common['Bad request']);
+		message($lang_common['Bad request'], false, '404 Not Found');
 
 	if (isset($_POST['del_cat_comply'])) // Delete a category with all forums and posts
 	{
@@ -84,7 +84,7 @@ else if (isset($_POST['del_cat']) || isset($_POST['del_cat_comply']))
 
 		redirect('admin_categories.php', $lang_admin_categories['Category deleted redirect']);
 	}
-	else // If the user hasn't comfirmed the delete
+	else // If the user hasn't confirmed the delete
 	{
 		$result = $db->query('SELECT cat_name FROM '.$db->prefix.'categories WHERE id='.$cat_to_delete) or error('Unable to fetch category info', __FILE__, __LINE__, $db->error());
 		$cat_name = $db->result($result);
@@ -128,17 +128,17 @@ else if (isset($_POST['update'])) // Change position and name of the categories
 
 	$categories = $_POST['cat'];
 	if (empty($categories))
-		message($lang_common['Bad request']);
+		message($lang_common['Bad request'], false, '404 Not Found');
 
 	foreach ($categories as $cat_id => $cur_cat)
 	{
 		$cur_cat['name'] = pun_trim($cur_cat['name']);
-		$cur_cat['order'] = trim($cur_cat['order']);
+		$cur_cat['order'] = pun_trim($cur_cat['order']);
 
 		if ($cur_cat['name'] == '')
 			message($lang_admin_categories['Must enter name message']);
 
-		if ($cur_cat['order'] == '' || preg_match('/[^0-9]/', $cur_cat['order']))
+		if ($cur_cat['order'] == '' || preg_match('%[^0-9]%', $cur_cat['order']))
 			message($lang_admin_categories['Must enter integer message']);
 
 		$db->query('UPDATE '.$db->prefix.'categories SET cat_name=\''.$db->escape($cur_cat['name']).'\', disp_position='.$cur_cat['order'].' WHERE id='.intval($cat_id)) or error('Unable to update category', __FILE__, __LINE__, $db->error());
@@ -175,7 +175,7 @@ generate_admin_menu('categories');
 					<fieldset>
 						<legend><?php echo $lang_admin_categories['Add categories subhead'] ?></legend>
 						<div class="infldset">
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php echo $lang_admin_categories['Add category label'] ?><div><input type="submit" name="add_cat" value="<?php echo $lang_admin_categories['Add new submit'] ?>" tabindex="2" /></div></th>
 									<td>
@@ -197,7 +197,7 @@ generate_admin_menu('categories');
 					<fieldset>
 						<legend><?php echo $lang_admin_categories['Delete categories subhead'] ?></legend>
 						<div class="infldset">
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php echo $lang_admin_categories['Delete category label'] ?><div><input type="submit" name="del_cat" value="<?php echo $lang_admin_common['Delete'] ?>" tabindex="4" /></div></th>
 									<td>
@@ -227,7 +227,7 @@ generate_admin_menu('categories');
 					<fieldset>
 						<legend><?php echo $lang_admin_categories['Edit categories subhead'] ?></legend>
 						<div class="infldset">
-							<table id="categoryedit" cellspacing="0" >
+							<table id="categoryedit">
 							<thead>
 								<tr>
 									<th class="tcl" scope="col"><?php echo $lang_admin_categories['Category name label'] ?></th>

@@ -25,14 +25,20 @@ $lang_help = array(
 
 'Links and images'		=>	'Links and images',
 'Links info'			=>	'You can create links to other documents or to email addresses using the following tags:',
+'This help page'		=>	'This help page',
 'My email address'		=>	'My email address',
 'Images info'			=>	'If you want to display an image you can use the img tag. The text appearing after the "=" sign in the opening tag is used for the alt attribute and should be included whenever possible.',
 'FluxBB bbcode test'	=>	'FluxBB bbcode test',
 
+'Test topic'			=>	'Test topic',
+'Test post'				=>	'Test post',
+'Test forum'			=>	'Test forum',
+'Test user'				=>	'Test user',
+
 'Quotes'				=>	'Quotes',
 'Quotes info'			=>	'If you want to quote someone, you should use the quote tag.',
 'Quotes info 2'			=>	'If you don\'t want to quote anyone in particular, you can use the quote tag without specifying a name.',
-'Quote text'			=>	'This is the text i want to quote.',
+'Quote text'			=>	'This is the text I want to quote.',
 'produces quote box'	=>	'produces a quote box like this:',
 'quote note'			=>	'Note: If a username contains the characters [ or ] you can enclose it in quote marks.',
 

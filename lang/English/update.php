@@ -7,12 +7,14 @@ $lang_update = array(
 'Update'						=>	'Update FluxBB',
 'Update message'				=>	'Your FluxBB database is out-of-date and must be upgraded in order to continue. If you are the board administrator, please follow the instructions below to complete the upgrade.',
 'Note'							=>	'Note:',
-'Members message'				=>	'This process is for board administators only. If you are a member there is nothing to worry about - the forums will be back shortly!',
+'Members message'				=>	'This process is for board administrators only. If you are a member there is nothing to worry about - the forums will be back shortly!',
 'Administrator only'			=>	'This step is for the board administrator only!',
 'Database password info'		=>	'To perform the database update please enter the database password with which FluxBB was installed. If you cannot remember, this is stored in your \'config.php\' file.',
 'Database password note'		=>	'If you are running SQLite (and hence have no database password) please use the database file name instead. This must exactly match the database file name given in your configuration file.',
 'Database password'				=>	'Database password',
-'Next'							=>	'Next',
+'Maintenance'					=>	'Maintenance',
+'Maintenance message info'		=>	'The message that will be displayed to users during the updating process. This text will not be parsed like regular posts and thus may contain HTML.',
+'Maintenance message'		    =>	'Maintenance message',
 
 'You are running error'			=>	'You are running %1$s version %2$s. FluxBB %3$s requires at least %1$s %4$s to run properly. You must upgrade your %1$s installation before you can continue.',
 'Version mismatch error'		=>	'Version mismatch. The database \'%s\' doesn\'t seem to be running a FluxBB database schema supported by this update script.',
@@ -56,7 +58,6 @@ $lang_update = array(
 'forums'						=>	'forums',
 'groups'						=>	'groups',
 'post'							=>	'post',
-'ranks'							=>	'ranks',
 'report'						=>	'report',
 'topic'							=>	'topic',
 'user'							=>	'user',
@@ -69,9 +70,5 @@ $lang_update = array(
 'Username bad characters error'	=>	'Usernames may not contain all the characters \', " and [ or ] at once. Please choose another username.',
 'Username BBCode error'			=>	'Usernames may not contain any of the text formatting tags (BBCode) that the forum uses. Please choose another username.',
 'Username duplicate error'		=>	'Someone is already registered with the username %s. The username you entered is too similar. The username must differ from that by at least one alphanumerical character (a-z or 0-9). Please choose a different username.',
-
-'JavaScript disabled'			=>	'JavaScript seems to be disabled. %s.',
-'Click here to continue'		=>	'Click here to continue',
-'Required field'				=>	'is a required field in this form.'
 
 );

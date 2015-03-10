@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -17,12 +17,12 @@ require PUN_ROOT.'include/common_admin.php';
 
 
 if ($pun_user['g_id'] != PUN_ADMIN)
-	message($lang_common['No permission']);
+	message($lang_common['No permission'], false, '403 Forbidden');
 
 // Load the admin_maintenance.php language file
 require PUN_ROOT.'lang/'.$admin_language.'/admin_maintenance.php';
 
-$action = isset($_REQUEST['action']) ? trim($_REQUEST['action']) : '';
+$action = isset($_REQUEST['action']) ? pun_trim($_REQUEST['action']) : '';
 
 if ($action == 'rebuild')
 {
@@ -125,7 +125,7 @@ h1 {
 
 if ($action == 'prune')
 {
-	$prune_from = trim($_POST['prune_from']);
+	$prune_from = pun_trim($_POST['prune_from']);
 	$prune_sticky = intval($_POST['prune_sticky']);
 
 	if (isset($_POST['prune_comply']))
@@ -172,8 +172,8 @@ if ($action == 'prune')
 		redirect('admin_maintenance.php', $lang_admin_maintenance['Posts pruned redirect']);
 	}
 
-	$prune_days = trim($_POST['req_prune_days']);
-	if ($prune_days == '' || preg_match('/[^0-9]/', $prune_days))
+	$prune_days = pun_trim($_POST['req_prune_days']);
+	if ($prune_days == '' || preg_match('%[^0-9]%', $prune_days))
 		message($lang_admin_maintenance['Days must be integer message']);
 
 	$prune_date = time() - ($prune_days * 86400);
@@ -262,7 +262,7 @@ generate_admin_menu('maintenance');
 						<legend><?php echo $lang_admin_maintenance['Rebuild index subhead'] ?></legend>
 						<div class="infldset">
 							<p><?php printf($lang_admin_maintenance['Rebuild index info'], '<a href="admin_options.php#maintenance">'.$lang_admin_common['Maintenance mode'].'</a>') ?></p>
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php echo $lang_admin_maintenance['Posts per cycle label'] ?></th>
 									<td>
@@ -280,7 +280,7 @@ generate_admin_menu('maintenance');
 								<tr>
 									<th scope="row"><?php echo $lang_admin_maintenance['Empty index label'] ?></th>
 									<td class="inputadmin">
-										<span><input type="checkbox" name="i_empty_index" value="1" tabindex="3" checked="checked" />&#160;&#160;<?php echo $lang_admin_maintenance['Empty index help'] ?></span>
+										<label><input type="checkbox" name="i_empty_index" value="1" tabindex="3" checked="checked" />&#160;&#160;<?php echo $lang_admin_maintenance['Empty index help'] ?></label>
 									</td>
 								</tr>
 							</table>
@@ -297,7 +297,7 @@ generate_admin_menu('maintenance');
 					<fieldset>
 						<legend><?php echo $lang_admin_maintenance['Prune subhead'] ?></legend>
 						<div class="infldset">
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php echo $lang_admin_maintenance['Days old label'] ?></th>
 									<td>
@@ -308,8 +308,9 @@ generate_admin_menu('maintenance');
 								<tr>
 									<th scope="row"><?php echo $lang_admin_maintenance['Prune sticky label'] ?></th>
 									<td>
-										<input type="radio" name="prune_sticky" value="1" tabindex="6" checked="checked" />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong>&#160;&#160;&#160;<input type="radio" name="prune_sticky" value="0" />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong>
-										<span><?php echo $lang_admin_maintenance['Prune sticky help'] ?></span>
+										<label class="conl"><input type="radio" name="prune_sticky" value="1" tabindex="6" checked="checked" />&#160;<strong><?php echo $lang_admin_common['Yes'] ?></strong></label>
+										<label class="conl"><input type="radio" name="prune_sticky" value="0" />&#160;<strong><?php echo $lang_admin_common['No'] ?></strong></label>
+										<span class="clearb"><?php echo $lang_admin_maintenance['Prune sticky help'] ?></span>
 									</td>
 								</tr>
 								<tr>

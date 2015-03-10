@@ -1,6 +1,6 @@
 <?php
 
-// Language definitions used in admin-options.php
+// Language definitions used in admin_options.php
 $lang_admin_options = array(
 
 'Bad HTTP Referer message'			=>	'Bad HTTP_REFERER. If you have moved these forums from one location to another or switched domains, you need to update the Base URL manually in the database (look for o_base_url in the config table) and then clear the cache by deleting all .php files in the /cache directory.',
@@ -23,6 +23,7 @@ $lang_admin_options = array(
 'Board desc help'					=>	'A short description of this bulletin board (shown at the top of every page). This field may contain HTML.',
 'Base URL label'					=>	'Base URL',
 'Base URL help'						=>	'The complete URL of the board without trailing slash (i.e. http://www.mydomain.com/forums). This <strong>must</strong> be correct in order for all admin and moderator features to work. If you get "Bad referer" errors, it\'s probably incorrect.',
+'Base URL problem'          =>  'Your installation does not support automatic conversion of internationalized domain names. As your base URL contains special characters, you <strong>must</strong> use an online converter in order to avoid "Bad referer" errors.',
 'Timezone label'					=>	'Default time zone',
 'Timezone help'						=>	'The default time zone for guests and users attempting to register for the board.',
 'DST label'							=>	'Adjust for DST',
@@ -51,27 +52,27 @@ $lang_admin_options = array(
 'UTC'								=>	'(UTC) Western European, Greenwich',
 'UTC+01:00'							=>	'(UTC+01:00) Central European, West African',
 'UTC+02:00'							=>	'(UTC+02:00) Eastern European, Central African',
-'UTC+03:00'							=>	'(UTC+03:00) Moscow, Eastern African',
+'UTC+03:00'							=>	'(UTC+03:00) Eastern African',
 'UTC+03:30'							=>	'(UTC+03:30) Iran',
-'UTC+04:00'							=>	'(UTC+04:00) Gulf, Samara',
+'UTC+04:00'							=>	'(UTC+04:00) Moscow, Gulf, Samara',
 'UTC+04:30'							=>	'(UTC+04:30) Afghanistan',
-'UTC+05:00'							=>	'(UTC+05:00) Pakistan, Yekaterinburg',
+'UTC+05:00'							=>	'(UTC+05:00) Pakistan',
 'UTC+05:30'							=>	'(UTC+05:30) India, Sri Lanka',
 'UTC+05:45'							=>	'(UTC+05:45) Nepal',
-'UTC+06:00'							=>	'(UTC+06:00) Bangladesh, Bhutan, Novosibirsk',
+'UTC+06:00'							=>	'(UTC+06:00) Bangladesh, Bhutan, Yekaterinburg',
 'UTC+06:30'							=>	'(UTC+06:30) Cocos Islands, Myanmar',
-'UTC+07:00'							=>	'(UTC+07:00) Indochina, Krasnoyarsk',
-'UTC+08:00'							=>	'(UTC+08:00) Greater China, Australian Western, Irkutsk',
+'UTC+07:00'							=>	'(UTC+07:00) Indochina, Novosibirsk',
+'UTC+08:00'							=>	'(UTC+08:00) Greater China, Australian Western, Krasnoyarsk',
 'UTC+08:45'							=>	'(UTC+08:45) Southeastern Western Australia',
-'UTC+09:00'							=>	'(UTC+09:00) Japan, Korea, Chita',
+'UTC+09:00'							=>	'(UTC+09:00) Japan, Korea, Chita, Irkutsk',
 'UTC+09:30'							=>	'(UTC+09:30) Australian Central',
-'UTC+10:00'							=>	'(UTC+10:00) Australian Eastern, Vladivostok',
+'UTC+10:00'							=>	'(UTC+10:00) Australian Eastern',
 'UTC+10:30'							=>	'(UTC+10:30) Lord Howe',
-'UTC+11:00'							=>	'(UTC+11:00) Solomon Island, Magadan',
+'UTC+11:00'							=>	'(UTC+11:00) Solomon Island, Vladivostok',
 'UTC+11:30'							=>	'(UTC+11:30) Norfolk Island',
-'UTC+12:00'							=>	'(UTC+12:00) New Zealand, Fiji, Kamchatka',
+'UTC+12:00'							=>	'(UTC+12:00) New Zealand, Fiji, Magadan',
 'UTC+12:45'							=>	'(UTC+12:45) Chatham Islands',
-'UTC+13:00'							=>	'(UTC+13:00) Tonga, Phoenix Islands',
+'UTC+13:00'							=>	'(UTC+13:00) Tonga, Phoenix Islands, Kamchatka',
 'UTC+14:00'							=>	'(UTC+14:00) Line Islands',
 
 // Timeout Section
@@ -115,16 +116,14 @@ $lang_admin_options = array(
 
 // Features section
 'Features subhead'					=>	'Features',
-'Quick post label'					=>	'Quick post',
-'Quick post help'					=>	'When enabled, FluxBB will add a quick post form at the bottom of topics. This way users can post directly from the topic view.',
+'Quick post label'					=>	'Quick reply',
+'Quick post help'					=>	'When enabled, FluxBB will add a quick reply form at the bottom of topics. This way users can post directly from the topic view.',
 'Users online label'				=>	'Users online',
 'Users online help'					=>	'Display info on the index page about guests and registered users currently browsing the board.',
 'Censor words label'				=>	'Censor words',
 'Censor words help'					=>	'Enable this to censor specific words in the board. See %s for more info.',
 'Signatures label'					=>	'Signatures',
 'Signatures help'					=>	'Allow users to attach a signature to their posts.',
-'User ranks label'					=>	'User ranks',
-'User ranks help'					=>	'Enable this to use user ranks. See %s for more info.',
 'User has posted label'				=>	'User has posted earlier',
 'User has posted help'				=>	'This feature displays a dot in front of topics in viewforum.php in case the currently logged in user has posted in that topic earlier. Disable if you are experiencing high server load.',
 'Topic views label'					=>	'Topic views',
@@ -163,7 +162,7 @@ $lang_admin_options = array(
 // Avatars section
 'Avatars subhead'					=>	'Avatars',
 'Use avatars label'					=>	'Use avatars',
-'Use avatars help'					=>	'When enabled, users will be able to upload an avatar which will be displayed under their title/rank.',
+'Use avatars help'					=>	'When enabled, users will be able to upload an avatar which will be displayed under their title.',
 'Upload directory label'			=>	'Upload directory',
 'Upload directory help'				=>	'The upload directory for avatars (relative to the FluxBB root directory). PHP must have write permissions to this directory.',
 'Max width label'					=>	'Max width',

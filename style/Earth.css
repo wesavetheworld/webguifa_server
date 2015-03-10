@@ -22,6 +22,7 @@ html, body, .pun table, .pun div, .pun form, .pun p, .pun h1, .pun h2, .pun h3, 
 .pun select {
 	padding-bottom: 1px;
 	padding-top: 1px;
+	padding-right: 1px;
 }
 
 /* Content Defaults
@@ -151,6 +152,10 @@ html, body, .pun table, .pun div, .pun form, .pun p, .pun h1, .pun h2, .pun h3, 
 	clear: none;
 }
 
+.clearl {
+	clear: left;
+}
+
 /*****************************************************************
 2. COMMON STYLES
 *****************************************************************/
@@ -159,6 +164,8 @@ html, body, .pun table, .pun div, .pun form, .pun p, .pun h1, .pun h2, .pun h3, 
 ----------------------------------------------------------------*/
 
 .pun {
+	max-width: 1070px;
+	margin: 0 auto;
 	padding: 30px 40px;
 }
 
@@ -172,33 +179,8 @@ html, body, .pun table, .pun div, .pun form, .pun p, .pun h1, .pun h2, .pun h3, 
 
 .pun .punwrap {
 	border: 1px solid;
+	border-radius: 10px;
 	padding: 18px;
-}
-
-.pun .top-box {
-	height: 18px;
-	margin-bottom: -18px;
-	position: relative;
-	background: url(Earth/img/main_top.png) top left no-repeat;
-}
-
-.pun .top-box div {
-	height: 18px;
-	margin-left: 50%;
-	background: url(Earth/img/main_top.png) top right no-repeat;
-}
-
-.pun .end-box {
-	margin-top: -17px;
-	height: 18px;
-	position: relative;
-	background: url(Earth/img/main_end.png) bottom left no-repeat;
-}
-
-.pun .end-box div {
-	height: 18px;
-	margin-left: 50%;
-	background: url(Earth/img/main_end.png) bottom right no-repeat;
 }
 
 #punredirect h2, #punmaint h2 {
@@ -419,7 +401,7 @@ html, body, .pun table, .pun div, .pun form, .pun p, .pun h1, .pun h2, .pun h3, 
 /* Breadcrumbs, Postlink, Pagination
 ----------------------------------------------------------------*/
 
-.pun .linkst .inbox, .pun linksb .inbox, .pun .postlinksb .inbox {
+.pun .linkst .inbox, .pun .linksb .inbox, .pun .postlinksb .inbox {
 	overflow: hidden;
 }
 
@@ -667,7 +649,6 @@ html, body, .pun table, .pun div, .pun form, .pun p, .pun h1, .pun h2, .pun h3, 
 }
 
 .pun .blocktable .tclcon {
-	height: 1%;
 	min-height: 1px;
 	overflow: hidden;
 	padding: 0 11px 0 12px;
@@ -767,8 +748,8 @@ MAIN POSTS
 }
 
 .pun .blockpost .postleft, .pun .blockpost .postfootleft {
-	width: 206px;
-	padding: 7px 0 7px 12px;
+	width: 194px;
+	padding: 7px 12px 7px 12px;
 	float: left;
 	margin-left: -218px;
 	position: relative;
@@ -958,7 +939,6 @@ MAIN POSTS
 }
 
 .pun .codebox pre {
-	overflow-y:hidden;
 	overflow: auto;
 	width: 100%;
 	direction: ltr;
@@ -974,7 +954,7 @@ MAIN POSTS
 }
 
 .pun .codebox pre code {
-	padding: 0.75em;
+	padding: 0.5em;
 	white-space: pre;
 }
 
@@ -1183,6 +1163,10 @@ MAIN FORMS
 	width: 98%;
 }
 
+.pun textarea {
+	resize: vertical;
+}
+
 .pun #quickpost .txtarea {
 	padding-right: 12px;
 	position: relative;
@@ -1275,6 +1259,30 @@ MAIN FORMS
 	padding: 7px 12px;
 }
 
+.pun .multiselect {
+	float: left;
+	padding-bottom: 7px;
+}
+
+.pun .checklist {
+	border-width: 1px;
+	border-style: solid;
+	max-height: 9em;
+	width: 20em;
+	overflow: auto;
+	padding: 0.25em 0.5em;
+	margin: 0.25em 16px 0 0.15em;
+}
+
+.pun .checklist legend {
+	padding: 0;
+}
+
+.pun .checklist legend span {
+	width: auto;
+	max-width: 25em;
+}
+
 /*****************************************************************
 PROFILES (+ ADMIN MENU)
 *****************************************************************/
@@ -1346,7 +1354,7 @@ PROFILES (+ ADMIN MENU)
 	position: relative;
 }
 
-#adintro, #adstats {
+#adintro, #adstats, #adalerts {
 	border-style: solid;
 	border-width: 1px;
 	padding: 18px;
@@ -1360,7 +1368,7 @@ PROFILES (+ ADMIN MENU)
 	background: url(Earth/img/bull.png) center left no-repeat;
 }
 
-#adstats .inbox, #adintro .inbox {
+#adstats .inbox, #adintro .inbox, #adalerts p {
 	border-style: solid;
 	border-width: 1px;
 	padding: 18px;
@@ -1529,7 +1537,7 @@ html, body, .pun {
 /* Main Forms + Profile
 ----------------------------------------------------------------*/
 
-.pun .blockform .box, #adstats, #adintro, #postpreview, #posterror {
+.pun .blockform .box, #adstats, #adintro, #adalerts, #postpreview, #posterror {
 	border-color: #bbc6b2 #d8dccf;
 	background: #eaecda;
 }
@@ -1555,7 +1563,7 @@ html, body, .pun {
 	color: #fff;
 }
 
-.pun #posterror .error-info {
+.pun #posterror .error-info, .pun #adalerts p {
 	background: #ffffe1;
 	border-color: #dfe6ee;
 }
@@ -1607,6 +1615,15 @@ html, body, .pun {
 
 #adminconsole fieldset td.nodefault {
 	background: #d59b9b;
+}
+
+.pun .multiselect {
+	color: #83866A;
+}
+
+.pun .checklist {
+	background: white;
+	border-color: #ccc;
 }
 
 /* Status Indicators

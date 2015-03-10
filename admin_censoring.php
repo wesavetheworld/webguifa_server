@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -15,7 +15,7 @@ require PUN_ROOT.'include/common_admin.php';
 
 
 if ($pun_user['g_id'] != PUN_ADMIN)
-	message($lang_common['No permission']);
+	message($lang_common['No permission'], false, '403 Forbidden');
 
 // Load the admin_censoring.php language file
 require PUN_ROOT.'lang/'.$admin_language.'/admin_censoring.php';
@@ -101,7 +101,7 @@ generate_admin_menu('censoring');
 						<legend><?php echo $lang_admin_censoring['Add word subhead'] ?></legend>
 						<div class="infldset">
 							<p><?php echo $lang_admin_censoring['Add word info'].' '.($pun_config['o_censoring'] == '1' ? sprintf($lang_admin_censoring['Censoring enabled'], '<a href="admin_options.php#censoring">'.$lang_admin_common['Options'].'</a>') : sprintf($lang_admin_censoring['Censoring disabled'], '<a href="admin_options.php#censoring">'.$lang_admin_common['Options'].'</a>')) ?></p>
-							<table cellspacing="0">
+							<table>
 							<thead>
 								<tr>
 									<th class="tcl" scope="col"><?php echo $lang_admin_censoring['Censored word label'] ?></th>
@@ -131,7 +131,7 @@ if ($db->num_rows($result))
 {
 
 ?>
-							<table cellspacing="0" >
+							<table>
 							<thead>
 								<tr>
 									<th class="tcl" scope="col"><?php echo $lang_admin_censoring['Censored word label'] ?></th>

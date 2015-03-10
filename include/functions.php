@@ -1,10 +1,11 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
+
 
 
 //
@@ -26,7 +27,7 @@ function check_cookie(&$pun_user)
 	$now = time();
 
 	// If the cookie is set and it matches the correct pattern, then read the values from it
-	if (isset($_COOKIE[$cookie_name]) && preg_match('/^(\d+)\|([0-9a-fA-F]+)\|(\d+)\|([0-9a-fA-F]+)$/', $_COOKIE[$cookie_name], $matches))
+	if (isset($_COOKIE[$cookie_name]) && preg_match('%^(\d+)\|([0-9a-fA-F]+)\|(\d+)\|([0-9a-fA-F]+)$%', $_COOKIE[$cookie_name], $matches))
 	{
 		$cookie = array(
 			'user_id'			=> intval($matches[1]),
@@ -213,6 +214,7 @@ function get_current_protocol()
 	return $protocol;
 }
 
+
 //
 // Fetch the base_url, optionally support HTTPS and HTTP
 //
@@ -235,6 +237,27 @@ function get_base_url($support_https = false)
 
 
 //
+// Fetch admin IDs
+//
+function get_admin_ids()
+{
+	if (file_exists(FORUM_CACHE_DIR.'cache_admins.php'))
+		include FORUM_CACHE_DIR.'cache_admins.php';
+
+	if (!defined('PUN_ADMINS_LOADED'))
+	{
+		if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
+			require PUN_ROOT.'include/cache.php';
+
+		generate_admins_cache();
+		require FORUM_CACHE_DIR.'cache_admins.php';
+	}
+
+	return $pun_admins;
+}
+
+
+//
 // Fill $pun_user with default values (for guests)
 //
 function set_default_user()
@@ -244,9 +267,9 @@ function set_default_user()
 	$remote_addr = get_remote_address();
 
 	// Fetch guest user
-	$result = $db->query('SELECT u.*, g.*, o.logged, o.last_post, o.last_search FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON u.group_id=g.g_id LEFT JOIN '.$db->prefix.'online AS o ON o.ident=\''.$remote_addr.'\' WHERE u.id=1') or error('Unable to fetch guest information', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT u.*, g.*, o.logged, o.last_post, o.last_search FROM '.$db->prefix.'users AS u INNER JOIN '.$db->prefix.'groups AS g ON u.group_id=g.g_id LEFT JOIN '.$db->prefix.'online AS o ON o.ident=\''.$db->escape($remote_addr).'\' WHERE u.id=1') or error('Unable to fetch guest information', __FILE__, __LINE__, $db->error());
 	if (!$db->num_rows($result))
-		exit('Unable to fetch guest information. The table \''.$db->prefix.'users\' must contain an entry with id = 1 that represents anonymous users.');
+		exit('Unable to fetch guest information. Your database must contain both a guest user and a guest user group.');
 
 	$pun_user = $db->fetch_assoc($result);
 
@@ -337,7 +360,10 @@ function pun_setcookie($user_id, $password_hash, $expire)
 //
 function forum_setcookie($name, $value, $expire)
 {
-	global $cookie_path, $cookie_domain, $cookie_secure;
+	global $cookie_path, $cookie_domain, $cookie_secure, $pun_config;
+
+	if ($expire - time() - $pun_config['o_timeout_visit'] < 1)
+		$expire = 0;
 
 	// Enable sending of a P3P header
 	header('P3P: CP="CUR ADM"');
@@ -405,7 +431,7 @@ function check_bans()
 		if ($is_banned)
 		{
 			$db->query('DELETE FROM '.$db->prefix.'online WHERE ident=\''.$db->escape($pun_user['username']).'\'') or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());
-			message($lang_common['Ban message'].' '.(($cur_ban['expire'] != '') ? $lang_common['Ban message 2'].' '.strtolower(format_time($cur_ban['expire'], true)).'. ' : '').(($cur_ban['message'] != '') ? $lang_common['Ban message 3'].'<br /><br /><strong>'.pun_htmlspecialchars($cur_ban['message']).'</strong><br /><br />' : '<br /><br />').$lang_common['Ban message 4'].' <a href="mailto:'.$pun_config['o_admin_email'].'">'.$pun_config['o_admin_email'].'</a>.', true);
+			message($lang_common['Ban message'].' '.(($cur_ban['expire'] != '') ? $lang_common['Ban message 2'].' '.strtolower(format_time($cur_ban['expire'], true)).'. ' : '').(($cur_ban['message'] != '') ? $lang_common['Ban message 3'].'<br /><br /><strong>'.pun_htmlspecialchars($cur_ban['message']).'</strong><br /><br />' : '<br /><br />').$lang_common['Ban message 4'].' <a href="mailto:'.pun_htmlspecialchars($pun_config['o_admin_email']).'">'.pun_htmlspecialchars($pun_config['o_admin_email']).'</a>.', true);
 		}
 	}
 
@@ -427,21 +453,24 @@ function check_username($username, $exclude_id = null)
 {
 	global $db, $pun_config, $errors, $lang_prof_reg, $lang_register, $lang_common, $pun_bans;
 
+	// Include UTF-8 function
+	require_once PUN_ROOT.'include/utf8/strcasecmp.php';
+
 	// Convert multiple whitespace characters into one (to prevent people from registering with indistinguishable usernames)
-	$username = preg_replace('#\s+#s', ' ', $username);
+	$username = preg_replace('%\s+%s', ' ', $username);
 
 	// Validate username
 	if (pun_strlen($username) < 2)
 		$errors[] = $lang_prof_reg['Username too short'];
 	else if (pun_strlen($username) > 25) // This usually doesn't happen since the form element only accepts 25 characters
 		$errors[] = $lang_prof_reg['Username too long'];
-	else if (!strcasecmp($username, 'Guest') || !strcasecmp($username, $lang_common['Guest']))
+	else if (!strcasecmp($username, 'Guest') || !utf8_strcasecmp($username, $lang_common['Guest']))
 		$errors[] = $lang_prof_reg['Username guest'];
-	else if (preg_match('/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/', $username) || preg_match('/((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))/', $username))
+	else if (preg_match('%[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}%', $username) || preg_match('%((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))%', $username))
 		$errors[] = $lang_prof_reg['Username IP'];
 	else if ((strpos($username, '[') !== false || strpos($username, ']') !== false) && strpos($username, '\'') !== false && strpos($username, '"') !== false)
 		$errors[] = $lang_prof_reg['Username reserved chars'];
-	else if (preg_match('/(?:\[\/?(?:b|u|s|ins|del|em|i|h|colou?r|quote|code|img|url|email|list|\*)\]|\[(?:img|url|quote|list)=)/i', $username))
+	else if (preg_match('%(?:\[/?(?:b|u|s|ins|del|em|i|h|colou?r|quote|code|img|url|email|list|\*|topic|post|forum|user)\]|\[(?:img|url|quote|list)=)%i', $username))
 		$errors[] = $lang_prof_reg['Username BBCode'];
 
 	// Check username for any censored words
@@ -449,9 +478,9 @@ function check_username($username, $exclude_id = null)
 		$errors[] = $lang_register['Username censor'];
 
 	// Check that the username (or a too similar username) is not already registered
-	$query = ($exclude_id) ? ' AND id!='.$exclude_id : '';
+	$query = (!is_null($exclude_id)) ? ' AND id!='.$exclude_id : '';
 
-	$result = $db->query('SELECT username FROM '.$db->prefix.'users WHERE (UPPER(username)=UPPER(\''.$db->escape($username).'\') OR UPPER(username)=UPPER(\''.$db->escape(ucp_preg_replace('/[^\p{L}\p{N}]/u', '', $username)).'\')) AND id>1'.$query) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
+	$result = $db->query('SELECT username FROM '.$db->prefix.'users WHERE (UPPER(username)=UPPER(\''.$db->escape($username).'\') OR UPPER(username)=UPPER(\''.$db->escape(ucp_preg_replace('%[^\p{L}\p{N}]%u', '', $username)).'\')) AND id>1'.$query) or error('Unable to fetch user info', __FILE__, __LINE__, $db->error());
 
 	if ($db->num_rows($result))
 	{
@@ -562,11 +591,14 @@ function generate_avatar_markup($user_id)
 //
 function generate_page_title($page_title, $p = null)
 {
-	global $pun_config, $lang_common;
+	global $lang_common;
+
+	if (!is_array($page_title))
+		$page_title = array($page_title);
 
 	$page_title = array_reverse($page_title);
 
-	if ($p != null)
+	if ($p > 1)
 		$page_title[0] .= ' ('.sprintf($lang_common['Page'], forum_number_format($p)).')';
 
 	$crumbs = implode($lang_common['Title separator'], $page_title);
@@ -619,7 +651,7 @@ function get_tracked_topics()
 	if (!$cookie_data)
 		return array('topics' => array(), 'forums' => array());
 
-	if (strlen($cookie_data) > 4048)
+	if (strlen($cookie_data) > FORUM_MAX_COOKIE_SIZE)
 		return array('topics' => array(), 'forums' => array());
 
 	// Unserialize data from cookie
@@ -635,6 +667,17 @@ function get_tracked_topics()
 	}
 
 	return $tracked_topics;
+}
+
+
+//
+// Shortcut method for executing all callbacks registered with the addon manager for the given hook
+//
+function flux_hook($name)
+{
+	global $flux_addons;
+
+	$flux_addons->hook($name);
 }
 
 
@@ -681,7 +724,7 @@ function delete_avatar($user_id)
 
 
 //
-// Delete a topic and all of it's posts
+// Delete a topic and all of its posts
 //
 function delete_topic($topic_id)
 {
@@ -798,8 +841,8 @@ function censor_words($text)
 //
 function get_title($user)
 {
-	global $db, $pun_config, $pun_bans, $lang_common;
-	static $ban_list, $pun_ranks;
+	global $pun_bans, $lang_common;
+	static $ban_list;
 
 	// If not already built in a previous call, build an array of lowercase banned usernames
 	if (empty($ban_list))
@@ -807,30 +850,14 @@ function get_title($user)
 		$ban_list = array();
 
 		foreach ($pun_bans as $cur_ban)
-			$ban_list[] = strtolower($cur_ban['username']);
-	}
-
-	// If not already loaded in a previous call, load the cached ranks
-	if ($pun_config['o_ranks'] == '1' && !defined('PUN_RANKS_LOADED'))
-	{
-		if (file_exists(FORUM_CACHE_DIR.'cache_ranks.php'))
-			include FORUM_CACHE_DIR.'cache_ranks.php';
-
-		if (!defined('PUN_RANKS_LOADED'))
-		{
-			if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
-				require PUN_ROOT.'include/cache.php';
-
-			generate_ranks_cache();
-			require FORUM_CACHE_DIR.'cache_ranks.php';
-		}
+			$ban_list[] = utf8_strtolower($cur_ban['username']);
 	}
 
 	// If the user has a custom title
 	if ($user['title'] != '')
 		$user_title = pun_htmlspecialchars($user['title']);
 	// If the user is banned
-	else if (in_array(strtolower($user['username']), $ban_list))
+	else if (in_array(utf8_strtolower($user['username']), $ban_list))
 		$user_title = $lang_common['Banned'];
 	// If the user group has a default user title
 	else if ($user['g_user_title'] != '')
@@ -838,22 +865,9 @@ function get_title($user)
 	// If the user is a guest
 	else if ($user['g_id'] == PUN_GUEST)
 		$user_title = $lang_common['Guest'];
+	// If nothing else helps, we assign the default
 	else
-	{
-		// Are there any ranks?
-		if ($pun_config['o_ranks'] == '1' && !empty($pun_ranks))
-		{
-			foreach ($pun_ranks as $cur_rank)
-			{
-				if ($user['num_posts'] >= $cur_rank['min_posts'])
-					$user_title = pun_htmlspecialchars($cur_rank['rank']);
-			}
-		}
-
-		// If the user didn't "reach" any rank (or if ranks are disabled), we assign the default
-		if (!isset($user_title))
-			$user_title = $lang_common['Member'];
-	}
+		$user_title = $lang_common['Member'];
 
 	return $user_title;
 }
@@ -882,11 +896,11 @@ function paginate($num_pages, $cur_page, $link)
 	{
 		// Add a previous page link
 		if ($num_pages > 1 && $cur_page > 1)
-			$pages[] = '<a'.(empty($pages) ? ' class="item1"' : '').' href="'.$link.'&amp;p='.($cur_page - 1).'">'.$lang_common['Previous'].'</a>';
+			$pages[] = '<a rel="prev"'.(empty($pages) ? ' class="item1"' : '').' href="'.$link.($cur_page == 2 ? '' : '&amp;p='.($cur_page - 1)).'">'.$lang_common['Previous'].'</a>';
 
 		if ($cur_page > 3)
 		{
-			$pages[] = '<a'.(empty($pages) ? ' class="item1"' : '').' href="'.$link.'&amp;p=1">1</a>';
+			$pages[] = '<a'.(empty($pages) ? ' class="item1"' : '').' href="'.$link.'">1</a>';
 
 			if ($cur_page > 5)
 				$pages[] = '<span class="spacer">'.$lang_common['Spacer'].'</span>';
@@ -898,7 +912,7 @@ function paginate($num_pages, $cur_page, $link)
 			if ($current < 1 || $current > $num_pages)
 				continue;
 			else if ($current != $cur_page || $link_to_all)
-				$pages[] = '<a'.(empty($pages) ? ' class="item1"' : '').' href="'.$link.'&amp;p='.$current.'">'.forum_number_format($current).'</a>';
+				$pages[] = '<a'.(empty($pages) ? ' class="item1"' : '').' href="'.$link.($current == 1 ? '' : '&amp;p='.$current).'">'.forum_number_format($current).'</a>';
 			else
 				$pages[] = '<strong'.(empty($pages) ? ' class="item1"' : '').'>'.forum_number_format($current).'</strong>';
 		}
@@ -913,7 +927,7 @@ function paginate($num_pages, $cur_page, $link)
 
 		// Add a next page link
 		if ($num_pages > 1 && !$link_to_all && $cur_page < $num_pages)
-			$pages[] = '<a'.(empty($pages) ? ' class="item1"' : '').' href="'.$link.'&amp;p='.($cur_page +1).'">'.$lang_common['Next'].'</a>';
+			$pages[] = '<a rel="next"'.(empty($pages) ? ' class="item1"' : '').' href="'.$link.'&amp;p='.($cur_page +1).'">'.$lang_common['Next'].'</a>';
 	}
 
 	return implode(' ', $pages);
@@ -923,9 +937,14 @@ function paginate($num_pages, $cur_page, $link)
 //
 // Display a message
 //
-function message($message, $no_back_link = false)
+function message($message, $no_back_link = false, $http_status = null)
 {
 	global $db, $lang_common, $pun_config, $pun_start, $tpl_main, $pun_user;
+
+	// Did we receive a custom header?
+	if(!is_null($http_status)) {
+		header('HTTP/1.1 ' . $http_status);
+	}
 
 	if (!defined('PUN_HEADER'))
 	{
@@ -956,7 +975,7 @@ function message($message, $no_back_link = false)
 //
 function format_time($timestamp, $date_only = false, $date_format = null, $time_format = null, $time_only = false, $no_text = false)
 {
-	global $pun_config, $lang_common, $pun_user, $forum_date_formats, $forum_time_formats;
+	global $lang_common, $pun_user, $forum_date_formats, $forum_time_formats;
 
 	if ($timestamp == '')
 		return $lang_common['Never'];
@@ -965,10 +984,10 @@ function format_time($timestamp, $date_only = false, $date_format = null, $time_
 	$timestamp += $diff;
 	$now = time();
 
-	if($date_format == null)
+	if(is_null($date_format))
 		$date_format = $forum_date_formats[$pun_user['date_format']];
 
-	if($time_format == null)
+	if(is_null($time_format))
 		$time_format = $forum_time_formats[$pun_user['time_format']];
 
 	$date = gmdate($date_format, $timestamp);
@@ -1008,21 +1027,22 @@ function forum_number_format($number, $decimals = 0)
 //
 function random_key($len, $readable = false, $hash = false)
 {
-	$key = '';
+	if (!function_exists('secure_random_bytes'))
+		include PUN_ROOT.'include/srand.php';
+
+	$key = secure_random_bytes($len);
 
 	if ($hash)
-		$key = substr(pun_hash(uniqid(rand(), true)), 0, $len);
+		return substr(bin2hex($key), 0, $len);
 	else if ($readable)
 	{
 		$chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
+		$result = '';
 		for ($i = 0; $i < $len; ++$i)
-			$key .= substr($chars, (mt_rand() % strlen($chars)), 1);
-	}
-	else
-	{
-		for ($i = 0; $i < $len; ++$i)
-			$key .= chr(mt_rand(33, 126));
+			$result .= substr($chars, (ord($key[$i]) % strlen($chars)), 1);
+
+		return $result;
 	}
 
 	return $key;
@@ -1032,9 +1052,12 @@ function random_key($len, $readable = false, $hash = false)
 //
 // Make sure that HTTP_REFERER matches base_url/script
 //
-function confirm_referrer($script, $error_msg = false)
+function confirm_referrer($scripts, $error_msg = false)
 {
-	global $pun_config, $lang_common;
+	global $lang_common;
+
+	if (!is_array($scripts))
+		$scripts = array($scripts);
 
 	// There is no referrer
 	if (empty($_SERVER['HTTP_REFERER']))
@@ -1045,14 +1068,57 @@ function confirm_referrer($script, $error_msg = false)
 	if (strpos($referrer['host'], 'www.') === 0)
 		$referrer['host'] = substr($referrer['host'], 4);
 
-	$valid = parse_url(strtolower(get_base_url().'/'.$script));
+	$valid_paths = array();
+	foreach ($scripts as $script)
+	{
+		$valid = parse_url(strtolower(get_base_url().'/'.$script));
+		// Remove www subdomain if it exists
+		if (strpos($valid['host'], 'www.') === 0)
+			$valid['host'] = substr($valid['host'], 4);
+
+		$valid_host = $valid['host'];
+		$valid_paths[] = $valid['path'];
+	}
+
+	// Check the host and path match. Ignore the scheme, port, etc.
+	if ($referrer['host'] != $valid_host || !in_array($referrer['path'], $valid_paths, true))
+		message($error_msg ? $error_msg : $lang_common['Bad referrer']);
+}
+
+
+//
+// Validate the given redirect URL, use the fallback otherwise
+//
+function validate_redirect($redirect_url, $fallback_url)
+{
+	$referrer = parse_url(strtolower($redirect_url));
+
+	// Make sure the host component exists
+	if (!isset($referrer['host']))
+		$referrer['host'] = '';
+
+	// Remove www subdomain if it exists
+	if (strpos($referrer['host'], 'www.') === 0)
+		$referrer['host'] = substr($referrer['host'], 4);
+
+	// Make sure the path component exists
+	if (!isset($referrer['path']))
+		$referrer['path'] = '';
+
+	$valid = parse_url(strtolower(get_base_url()));
+
 	// Remove www subdomain if it exists
 	if (strpos($valid['host'], 'www.') === 0)
 		$valid['host'] = substr($valid['host'], 4);
 
-	// Check the host and path match. Ignore the scheme, port, etc.
-	if ($referrer['host'] != $valid['host'] || $referrer['path'] != $valid['path'])
-		message($error_msg ? $error_msg : $lang_common['Bad referrer']);
+	// Make sure the path component exists
+	if (!isset($valid['path']))
+		$valid['path'] = '';
+
+	if ($referrer['host'] == $valid['host'] && preg_match('%^'.preg_quote($valid['path'], '%').'/(.*?)\.php%i', $referrer['path']))
+		return $redirect_url;
+	else
+		return $fallback_url;
 }
 
 
@@ -1091,8 +1157,11 @@ function get_remote_address()
 			// X-Forwarded-For: client1, proxy1, proxy2
 			// where the value is a comma+space separated list of IP addresses, the left-most being the farthest downstream client,
 			// and each successive proxy that passed the request adding the IP address where it received the request from.
-			$remote_addr = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-			$remote_addr = trim($remote_addr[0]);
+			$forwarded_for = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+			$forwarded_for = trim($forwarded_for[0]);
+
+			if (@preg_match('%^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$%', $forwarded_for) || @preg_match('%^((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))$%', $forwarded_for))
+				$remote_addr = $forwarded_for;
 		}
 	}
 
@@ -1143,7 +1212,7 @@ function pun_strlen($str)
 //
 function pun_linebreaks($str)
 {
-	return str_replace("\r", "\n", str_replace("\r\n", "\n", $str));
+	return str_replace(array("\r\n", "\r"), "\n", $str);
 }
 
 
@@ -1152,7 +1221,7 @@ function pun_linebreaks($str)
 //
 function pun_trim($str, $charlist = false)
 {
-	return utf8_trim($str, $charlist);
+	return is_string($str) ? utf8_trim($str, $charlist) : '';
 }
 
 //
@@ -1172,7 +1241,7 @@ function is_all_uppercase($string)
 //
 function array_insert(&$input, $offset, $element, $key = null)
 {
-	if ($key == null)
+	if (is_null($key))
 		$key = $offset;
 
 	// Determine the proper offset if we're using a string
@@ -1224,7 +1293,7 @@ function maintenance_message()
 	$tpl_maint = file_get_contents($tpl_file);
 
 	// START SUBST - <pun_include "*">
-	preg_match_all('#<pun_include "([^/\\\\]*?)\.(php[45]?|inc|html?|txt)">#', $tpl_maint, $pun_includes, PREG_SET_ORDER);
+	preg_match_all('%<pun_include "([^/\\\\]*?)\.(php[45]?|inc|html?|txt)">%i', $tpl_maint, $pun_includes, PREG_SET_ORDER);
 
 	foreach ($pun_includes as $cur_include)
 	{
@@ -1314,11 +1383,17 @@ function redirect($destination_url, $message)
 		$destination_url = get_base_url(true).'/'.$destination_url;
 
 	// Do a little spring cleaning
-	$destination_url = preg_replace('/([\r\n])|(%0[ad])|(;\s*data\s*:)/i', '', $destination_url);
+	$destination_url = preg_replace('%([\r\n])|(\%0[ad])|(;\s*data\s*:)%i', '', $destination_url);
 
 	// If the delay is 0 seconds, we might as well skip the redirect all together
 	if ($pun_config['o_redirect_delay'] == '0')
+	{
+		$db->end_transaction();
+		$db->close();
+
 		header('Location: '.str_replace('&amp;', '&', $destination_url));
+		exit;
+	}
 
 	// Send no-cache headers
 	header('Expires: Thu, 21 Jul 1977 07:30:00 GMT'); // When yours truly first set eyes on this world! :)
@@ -1343,7 +1418,7 @@ function redirect($destination_url, $message)
 	$tpl_redir = file_get_contents($tpl_file);
 
 	// START SUBST - <pun_include "*">
-	preg_match_all('#<pun_include "([^/\\\\]*?)\.(php[45]?|inc|html?|txt)">#', $tpl_redir, $pun_includes, PREG_SET_ORDER);
+	preg_match_all('%<pun_include "([^/\\\\]*?)\.(php[45]?|inc|html?|txt)">%i', $tpl_redir, $pun_includes, PREG_SET_ORDER);
 
 	foreach ($pun_includes as $cur_include)
 	{
@@ -1380,7 +1455,7 @@ function redirect($destination_url, $message)
 	$page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_common['Redirecting']);
 
 ?>
-<meta http-equiv="refresh" content="<?php echo $pun_config['o_redirect_delay'] ?>;URL=<?php echo str_replace(array('<', '>', '"'), array('&lt;', '&gt;', '&quot;'), $destination_url) ?>" />
+<meta http-equiv="refresh" content="<?php echo $pun_config['o_redirect_delay'] ?>;URL=<?php echo $destination_url ?>" />
 <title><?php echo generate_page_title($page_title) ?></title>
 <link rel="stylesheet" type="text/css" href="style/<?php echo $pun_user['style'].'.css' ?>" />
 <?php
@@ -1498,7 +1573,7 @@ H2 {MARGIN: 0; COLOR: #FFFFFF; BACKGROUND-COLOR: #B84623; FONT-SIZE: 1.1em; PADD
 	<div>
 <?php
 
-	if (defined('PUN_DEBUG') && $file !== null && $line !== null)
+	if (defined('PUN_DEBUG') && !is_null($file) && !is_null($line))
 	{
 		echo "\t\t".'<strong>File:</strong> '.$file.'<br />'."\n\t\t".'<strong>Line:</strong> '.$line.'<br /><br />'."\n\t\t".'<strong>FluxBB reported</strong>: '.$message."\n";
 
@@ -1627,7 +1702,7 @@ function remove_bad_characters($array)
 	$array = utf8_bad_strip($array);
 
 	// Remove control characters
-	$array = preg_replace('/[\x{00}-\x{08}\x{0b}-\x{0c}\x{0e}-\x{1f}]/', '', $array);
+	$array = preg_replace('%[\x00-\x08\x0b-\x0c\x0e-\x1f]%', '', $array);
 
 	// Replace some "bad" characters
 	$array = str_replace(array_keys($bad_utf8_chars), array_values($bad_utf8_chars), $array);
@@ -1641,12 +1716,14 @@ function remove_bad_characters($array)
 //
 function file_size($size)
 {
+	global $lang_common;
+
 	$units = array('B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB');
 
 	for ($i = 0; $size > 1024; $i++)
 		$size /= 1024;
 
-	return round($size, 2).' '.$units[$i];
+	return sprintf($lang_common['Size unit '.$units[$i]], round($size, 2));
 }
 
 
@@ -1736,9 +1813,11 @@ function forum_list_plugins($is_admin)
 		$suffix = substr($entry, strlen($entry) - 4);
 
 		if ($suffix == '.php' && ((!$is_admin && $prefix == 'AMP') || ($is_admin && ($prefix == 'AP' || $prefix == 'AMP'))))
-			$plugins[] = array(substr($entry, strpos($entry, '_') + 1, -4), $entry);
+			$plugins[$entry] = substr($entry, strpos($entry, '_') + 1, -4);
 	}
 	$d->close();
+
+	natcasesort($plugins);
 
 	return $plugins;
 }
@@ -1747,36 +1826,86 @@ function forum_list_plugins($is_admin)
 //
 // Split text into chunks ($inside contains all text inside $start and $end, and $outside contains all text outside)
 //
-function split_text($text, $start, $end, &$errors, $retab = true)
+function split_text($text, $start, $end, $retab = true)
 {
-	global $pun_config, $lang_common;
+	global $pun_config;
 
-	$tokens = explode($start, $text);
+	$result = array(0 => array(), 1 => array()); // 0 = inside, 1 = outside
 
-	$outside[] = $tokens[0];
+	// split the text into parts
+	$parts = preg_split('%'.preg_quote($start, '%').'(.*)'.preg_quote($end, '%').'%Us', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+	$num_parts = count($parts);
 
-	$num_tokens = count($tokens);
-	for ($i = 1; $i < $num_tokens; ++$i)
+	// preg_split results in outside parts having even indices, inside parts having odd
+	for ($i = 0;$i < $num_parts;$i++)
+		$result[1 - ($i % 2)][] = $parts[$i];
+
+	if ($pun_config['o_indent_num_spaces'] != 8 && $retab)
 	{
-		$temp = explode($end, $tokens[$i]);
+		$spaces = str_repeat(' ', $pun_config['o_indent_num_spaces']);
+		$result[1] = str_replace("\t", $spaces, $result[1]);
+	}
 
-		if (count($temp) != 2)
+	return $result;
+}
+
+
+//
+// Extract blocks from a text with a starting and ending string
+// This function always matches the most outer block so nesting is possible
+//
+function extract_blocks($text, $start, $end, $retab = true)
+{
+	global $pun_config;
+
+	$code = array();
+	$start_len = strlen($start);
+	$end_len = strlen($end);
+	$regex = '%(?:'.preg_quote($start, '%').'|'.preg_quote($end, '%').')%';
+	$matches = array();
+
+	if (preg_match_all($regex, $text, $matches))
+	{
+		$counter = $offset = 0;
+		$start_pos = $end_pos = false;
+
+		foreach ($matches[0] as $match)
 		{
-			$errors[] = $lang_common['BBCode code problem'];
-			return array(null, array($text));
+			if ($match == $start)
+			{
+				if ($counter == 0)
+					$start_pos = strpos($text, $start);
+				$counter++;
+			}
+			elseif ($match == $end)
+			{
+				$counter--;
+				if ($counter == 0)
+					$end_pos = strpos($text, $end, $offset + 1);
+				$offset = strpos($text, $end, $offset + 1);
+			}
+
+			if ($start_pos !== false && $end_pos !== false)
+			{
+				$code[] = substr($text, $start_pos + $start_len,
+					$end_pos - $start_pos - $start_len);
+				$text = substr_replace($text, "\1", $start_pos,
+					$end_pos - $start_pos + $end_len);
+				$start_pos = $end_pos = false;
+				$offset = 0;
+			}
 		}
-		$inside[] = $temp[0];
-		$outside[] = $temp[1];
 	}
 
 	if ($pun_config['o_indent_num_spaces'] != 8 && $retab)
 	{
 		$spaces = str_repeat(' ', $pun_config['o_indent_num_spaces']);
-		$inside = str_replace("\t", $spaces, $inside);
+		$text = str_replace("\t", $spaces, $text);
 	}
 
-	return array($inside, $outside);
+	return array($code, $text);
 }
+
 
 //
 // function url_valid($url) {
@@ -1876,11 +2005,9 @@ function url_valid($url)
 			  [0-9A-Za-z]		   # Part last char is alphanum (no dash).
 			  \.				   # Each part followed by literal dot.
 			)*					   # One or more parts before top level domain.
-			(?:					   # Explicitly specify top level domains.
-			  com|edu|gov|int|mil|net|org|biz|
-			  info|name|pro|aero|coop|museum|
-			  asia|cat|jobs|mobi|tel|travel|
-			  [A-Za-z]{2})		   # Country codes are exqactly two alpha chars.
+			(?:					   # Top level domains
+			  [A-Za-z]{2,63}|	   # Country codes are exactly two alpha chars.
+			  xn--[0-9A-Za-z]{4,59})		   # Internationalized Domain Name (IDN)
 			$					   # Anchor to end of string.
 			/ix', $m['host'])) return FALSE;
 	}
@@ -1894,10 +2021,13 @@ function url_valid($url)
 //
 // This function takes care of possibly disabled unicode properties in PCRE builds
 //
-function ucp_preg_replace($pattern, $replace, $subject)
+function ucp_preg_replace($pattern, $replace, $subject, $callback = false)
 {
-	$replaced = preg_replace($pattern, $replace, $subject);
-	
+	if($callback) 
+		$replaced = preg_replace_callback($pattern, create_function('$matches', 'return '.$replace.';'), $subject);
+	else
+		$replaced = preg_replace($pattern, $replace, $subject);
+
 	// If preg_replace() returns false, this probably means unicode support is not built-in, so we need to modify the pattern a little
 	if ($replaced === false)
 	{
@@ -1905,15 +2035,82 @@ function ucp_preg_replace($pattern, $replace, $subject)
 		{
 			foreach ($pattern as $cur_key => $cur_pattern)
 				$pattern[$cur_key] = str_replace('\p{L}\p{N}', '\w', $cur_pattern);
-			
+
 			$replaced = preg_replace($pattern, $replace, $subject);
 		}
 		else
 			$replaced = preg_replace(str_replace('\p{L}\p{N}', '\w', $pattern), $replace, $subject);
 	}
-	
+
 	return $replaced;
 }
+
+//
+// A wrapper for ucp_preg_replace
+//
+function ucp_preg_replace_callback($pattern, $replace, $subject)
+{
+	return ucp_preg_replace($pattern, $replace, $subject, true);
+}
+
+//
+// Replace four-byte characters with a question mark
+//
+// As MySQL cannot properly handle four-byte characters with the default utf-8
+// charset up until version 5.5.3 (where a special charset has to be used), they
+// need to be replaced, by question marks in this case.
+//
+function strip_bad_multibyte_chars($str)
+{
+	$result = '';
+	$length = strlen($str);
+
+	for ($i = 0; $i < $length; $i++)
+	{
+		// Replace four-byte characters (11110www 10zzzzzz 10yyyyyy 10xxxxxx)
+		$ord = ord($str[$i]);
+		if ($ord >= 240 && $ord <= 244)
+		{
+			$result .= '?';
+			$i += 3;
+		}
+		else
+		{
+			$result .= $str[$i];
+		}
+	}
+
+	return $result;
+}
+
+//
+// Check whether a file/folder is writable.
+//
+// This function also works on Windows Server where ACLs seem to be ignored.
+//
+function forum_is_writable($path)
+{
+	if (is_dir($path))
+	{
+		$path = rtrim($path, '/').'/';
+		return forum_is_writable($path.uniqid(mt_rand()).'.tmp');
+	}
+
+	// Check temporary file for read/write capabilities
+	$rm = file_exists($path);
+	$f = @fopen($path, 'a');
+
+	if ($f === false)
+		return false;
+
+	fclose($f);
+
+	if (!$rm)
+		@unlink($path);
+
+	return true;
+}
+
 
 // DEBUG FUNCTIONS BELOW
 
@@ -1933,7 +2130,7 @@ function display_saved_queries()
 	<h2><span><?php echo $lang_common['Debug table'] ?></span></h2>
 	<div class="box">
 		<div class="inbox">
-			<table cellspacing="0">
+			<table>
 			<thead>
 				<tr>
 					<th class="tcl" scope="col"><?php echo $lang_common['Query times'] ?></th>

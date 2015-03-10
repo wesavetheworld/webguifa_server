@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -18,6 +18,9 @@ header('Pragma: no-cache'); // For HTTP/1.0 compatibility
 
 // Send the Content-type header in case the web server is setup to send something else
 header('Content-type: text/html; charset=utf-8');
+
+// Prevent site from being embedded in a frame
+header('X-Frame-Options: deny');
 
 // Load the template
 if (defined('PUN_ADMIN_CONSOLE'))
@@ -41,19 +44,27 @@ else
 $tpl_main = file_get_contents($tpl_file);
 
 // START SUBST - <pun_include "*">
-preg_match_all('#<pun_include "([^/\\\\]*?)\.(php[45]?|inc|html?|txt)">#', $tpl_main, $pun_includes, PREG_SET_ORDER);
+preg_match_all('%<pun_include "([^"]+)">%i', $tpl_main, $pun_includes, PREG_SET_ORDER);
 
 foreach ($pun_includes as $cur_include)
 {
 	ob_start();
 
+	$file_info = pathinfo($cur_include[1]);
+	
+	if (!in_array($file_info['extension'], array('php', 'php4', 'php5', 'inc', 'html', 'txt'))) // Allow some extensions
+		error(sprintf($lang_common['Pun include extension'], pun_htmlspecialchars($cur_include[0]), basename($tpl_file), pun_htmlspecialchars($file_info['extension'])));
+		
+	if (strpos($file_info['dirname'], '..') !== false) // Don't allow directory traversal
+		error(sprintf($lang_common['Pun include directory'], pun_htmlspecialchars($cur_include[0]), basename($tpl_file)));
+
 	// Allow for overriding user includes, too.
-	if (file_exists($tpl_inc_dir.$cur_include[1].'.'.$cur_include[2]))
-		require $tpl_inc_dir.$cur_include[1].'.'.$cur_include[2];
-	else if (file_exists(PUN_ROOT.'include/user/'.$cur_include[1].'.'.$cur_include[2]))
-		require PUN_ROOT.'include/user/'.$cur_include[1].'.'.$cur_include[2];
+	if (file_exists($tpl_inc_dir.$cur_include[1]))
+		require $tpl_inc_dir.$cur_include[1];
+	else if (file_exists(PUN_ROOT.'include/user/'.$cur_include[1]))
+		require PUN_ROOT.'include/user/'.$cur_include[1];
 	else
-		error(sprintf($lang_common['Pun include error'], htmlspecialchars($cur_include[0]), basename($tpl_file)));
+		error(sprintf($lang_common['Pun include error'], pun_htmlspecialchars($cur_include[0]), basename($tpl_file)));
 
 	$tpl_temp = ob_get_contents();
 	$tpl_main = str_replace($cur_include[0], $tpl_temp, $tpl_main);
@@ -75,7 +86,7 @@ $tpl_main = str_replace('<pun_content_direction>', $lang_common['lang_direction'
 // START SUBST - <pun_head>
 ob_start();
 
-// Define $p if its not set to avoid a PHP notice
+// Define $p if it's not set to avoid a PHP notice
 $p = isset($p) ? $p : null;
 
 // Is this a page that we want search index spiders to index?
@@ -85,7 +96,6 @@ if (!defined('PUN_ALLOW_INDEX'))
 ?>
 <title><?php echo generate_page_title($page_title, $p) ?></title>
 <link rel="stylesheet" type="text/css" href="style/<?php echo $pun_user['style'].'.css' ?>" />
-<link rel="stylesheet" type="text/css" href="css/simplemodal.css" />
 <?php
 
 if (defined('PUN_ADMIN_CONSOLE'))
@@ -105,7 +115,7 @@ if (isset($required_fields))
 /* <![CDATA[ */
 function process_form(the_form)
 {
-	var element_names = {
+	var required_fields = {
 <?php
 	// Output a JavaScript object with localised field names
 	$tpl_temp = count($required_fields);
@@ -121,14 +131,11 @@ function process_form(the_form)
 		for (var i = 0; i < the_form.length; ++i)
 		{
 			var elem = the_form.elements[i];
-			if (elem.name && (/^req_/.test(elem.name)))
+			if (elem.name && required_fields[elem.name] && !elem.value && elem.type && (/^(?:text(?:area)?|password|file)$/i.test(elem.type)))
 			{
-				if (!elem.value && elem.type && (/^(?:text(?:area)?|password|file)$/i.test(elem.type)))
-				{
-					alert('"' + element_names[elem.name] + '" <?php echo $lang_common['required field'] ?>');
-					elem.focus();
-					return false;
-				}
+				alert('"' + required_fields[elem.name] + '" <?php echo $lang_common['required field'] ?>');
+				elem.focus();
+				return false;
 			}
 		}
 	}
@@ -140,15 +147,8 @@ function process_form(the_form)
 
 }
 
-// JavaScript tricks for IE6 and older
-echo '<!--[if lte IE 6]><script type="text/javascript" src="style/imports/minmax.js"></script><![endif]-->'."\n";
-
-if (!isset($page_head))
-	$page_head = array();
-
-$page_head['top'] = '<link rel="top" href="index.php" title="'.$lang_common['Forum index'].'" />';
-
-echo implode("\n", $page_head)."\n";
+if (!empty($page_head))
+	echo implode("\n", $page_head)."\n";
 
 $tpl_temp = trim(ob_get_contents());
 $tpl_main = str_replace('<pun_head>', $tpl_temp, $tpl_main);
@@ -185,7 +185,7 @@ $links = array();
 
 // Index should always be displayed
 $links[] = '<li id="navindex"'.((PUN_ACTIVE_PAGE == 'index') ? ' class="isactive"' : '').'><a href="index.php">'.$lang_common['Index'].'</a></li>';
-/*
+
 if ($pun_user['g_read_board'] == '1' && $pun_user['g_view_users'] == '1')
 	$links[] = '<li id="navuserlist"'.((PUN_ACTIVE_PAGE == 'userlist') ? ' class="isactive"' : '').'><a href="userlist.php">'.$lang_common['User list'].'</a></li>';
 
@@ -194,7 +194,7 @@ if ($pun_config['o_rules'] == '1' && (!$pun_user['is_guest'] || $pun_user['g_rea
 
 if ($pun_user['g_read_board'] == '1' && $pun_user['g_search'] == '1')
 	$links[] = '<li id="navsearch"'.((PUN_ACTIVE_PAGE == 'search') ? ' class="isactive"' : '').'><a href="search.php">'.$lang_common['Search'].'</a></li>';
-*/
+
 if ($pun_user['is_guest'])
 {
 	$links[] = '<li id="navregister"'.((PUN_ACTIVE_PAGE == 'register') ? ' class="isactive"' : '').'><a href="register.php">'.$lang_common['Register'].'</a></li>';
@@ -202,19 +202,18 @@ if ($pun_user['is_guest'])
 }
 else
 {
-/*
 	$links[] = '<li id="navprofile"'.((PUN_ACTIVE_PAGE == 'profile') ? ' class="isactive"' : '').'><a href="profile.php?id='.$pun_user['id'].'">'.$lang_common['Profile'].'</a></li>';
 
 	if ($pun_user['is_admmod'])
 		$links[] = '<li id="navadmin"'.((PUN_ACTIVE_PAGE == 'admin') ? ' class="isactive"' : '').'><a href="admin_index.php">'.$lang_common['Admin'].'</a></li>';
-*/
+
 	$links[] = '<li id="navlogout"><a href="login.php?action=out&amp;id='.$pun_user['id'].'&amp;csrf_token='.pun_hash($pun_user['id'].pun_hash(get_remote_address())).'">'.$lang_common['Logout'].'</a></li>';
 }
 
 // Are there any additional navlinks we should insert into the array before imploding it?
 if ($pun_user['g_read_board'] == '1' && $pun_config['o_additional_navlinks'] != '')
 {
-	if (preg_match_all('#([0-9]+)\s*=\s*(.*?)\n#s', $pun_config['o_additional_navlinks']."\n", $extra_links))
+	if (preg_match_all('%([0-9]+)\s*=\s*(.*?)\n%s', $pun_config['o_additional_navlinks']."\n", $extra_links))
 	{
 		// Insert any additional links into the $links array (at the correct index)
 		$num_links = count($extra_links[1]);
@@ -232,7 +231,7 @@ $tpl_main = str_replace('<pun_navlinks>', $tpl_temp, $tpl_main);
 $page_statusinfo = $page_topicsearches = array();
 
 if ($pun_user['is_guest'])
-	$page_statusinfo = '<p>'.$lang_common['Not logged in'].'</p>';
+	$page_statusinfo = '<p class="conl">'.$lang_common['Not logged in'].'</p>';
 else
 {
 	$page_statusinfo[] = '<li><span>'.$lang_common['Logged in as'].' <strong>'.pun_htmlspecialchars($pun_user['username']).'</strong></span></li>';
@@ -260,16 +259,15 @@ else
 }
 
 // Quick searches
-/*
 if ($pun_user['g_read_board'] == '1' && $pun_user['g_search'] == '1')
 {
 	$page_topicsearches[] = '<a href="search.php?action=show_recent" title="'.$lang_common['Show active topics'].'">'.$lang_common['Active topics'].'</a>';
 	$page_topicsearches[] = '<a href="search.php?action=show_unanswered" title="'.$lang_common['Show unanswered topics'].'">'.$lang_common['Unanswered topics'].'</a>';
 }
-*/
+
 
 // Generate all that jazz
-$tpl_temp = '<div id="brdwelcome" class="inbox">'."\n\t\t\t";
+$tpl_temp = '<div id="brdwelcome" class="inbox">';
 
 // The status information
 if (is_array($page_statusinfo))
@@ -280,16 +278,16 @@ if (is_array($page_statusinfo))
 }
 else
 	$tpl_temp .= "\n\t\t\t".$page_statusinfo;
-/*
+
 // Generate quicklinks
 if (!empty($page_topicsearches))
 {
 	$tpl_temp .= "\n\t\t\t".'<ul class="conr">';
 	$tpl_temp .= "\n\t\t\t\t".'<li><span>'.$lang_common['Topic searches'].' '.implode(' | ', $page_topicsearches).'</span></li>';
-	$tpl_temp .= "\n\t\t\t".'</ul>'."\n\t\t\t".'<div class="clearer"></div>';
+	$tpl_temp .= "\n\t\t\t".'</ul>';
 }
-*/
-$tpl_temp .= "\n\t\t".'</div>';
+
+$tpl_temp .= "\n\t\t\t".'<div class="clearer"></div>'."\n\t\t".'</div>';
 
 $tpl_main = str_replace('<pun_status>', $tpl_temp, $tpl_main);
 // END SUBST - <pun_status>

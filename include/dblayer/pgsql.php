@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -26,12 +26,12 @@ class DBLayer
 	var $error_msg = 'Unknown';
 
 	var $datatype_transformations = array(
-		'/^(TINY|SMALL)INT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$/i'			=>	'SMALLINT',
-		'/^(MEDIUM)?INT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$/i'				=>	'INTEGER',
-		'/^BIGINT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$/i'						=>	'BIGINT',
-		'/^(TINY|MEDIUM|LONG)?TEXT$/i'										=>	'TEXT',
-		'/^DOUBLE( )?(\\([0-9,]+\\))?( )?(UNSIGNED)?$/i'					=>	'DOUBLE PRECISION',
-		'/^FLOAT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$/i'						=>	'REAL'
+		'%^(TINY|SMALL)INT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$%i'			=>	'SMALLINT',
+		'%^(MEDIUM)?INT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$%i'				=>	'INTEGER',
+		'%^BIGINT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$%i'						=>	'BIGINT',
+		'%^(TINY|MEDIUM|LONG)?TEXT$%i'										=>	'TEXT',
+		'%^DOUBLE( )?(\\([0-9,]+\\))?( )?(UNSIGNED)?$%i'					=>	'DOUBLE PRECISION',
+		'%^FLOAT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$%i'						=>	'REAL'
 	);
 
 
@@ -100,7 +100,7 @@ class DBLayer
 	function query($sql, $unbuffered = false) // $unbuffered is ignored since there is no pgsql_unbuffered_query()
 	{
 		if (strrpos($sql, 'LIMIT') !== false)
-			$sql = preg_replace('#LIMIT ([0-9]+),([ 0-9]+)#', 'LIMIT \\2 OFFSET \\1', $sql);
+			$sql = preg_replace('%LIMIT ([0-9]+),([ 0-9]+)%', 'LIMIT \\2 OFFSET \\1', $sql);
 
 		if (defined('PUN_SHOW_QUERIES'))
 			$q_start = get_microtime();
@@ -115,7 +115,7 @@ class DBLayer
 
 			++$this->num_queries;
 
-			$this->last_query_text[$this->query_result] = $sql;
+			$this->last_query_text[intval($this->query_result)] = $sql;
 
 			return $this->query_result;
 		}
@@ -171,9 +171,9 @@ class DBLayer
 	{
 		$query_id = $this->query_result;
 
-		if ($query_id && $this->last_query_text[$query_id] != '')
+		if ($query_id && $this->last_query_text[intval($query_id)] != '')
 		{
-			if (preg_match('/^INSERT INTO ([a-z0-9\_\-]+)/is', $this->last_query_text[$query_id], $table_name))
+			if (preg_match('%^INSERT INTO ([a-z0-9\_\-]+)%is', $this->last_query_text[intval($query_id)], $table_name))
 			{
 				// Hack (don't ask)
 				if (substr($table_name[1], -6) == 'groups')
@@ -266,7 +266,7 @@ class DBLayer
 
 		return array(
 			'name'		=> 'PostgreSQL',
-			'version'	=> preg_replace('/^[^0-9]+([^\s,-]+).*$/', '\\1', $this->result($result))
+			'version'	=> preg_replace('%^[^0-9]+([^\s,-]+).*$%', '\\1', $this->result($result))
 		);
 	}
 
@@ -354,7 +354,7 @@ class DBLayer
 
 	function rename_table($old_table, $new_table, $no_prefix = false)
 	{
-		// If there new table exists and the old one doesn't, then we're happy
+		// If the new table exists and the old one doesn't, then we're happy
 		if ($this->table_exists($new_table, $no_prefix) && !$this->table_exists($old_table, $no_prefix))
 			return true;
 
@@ -371,7 +371,7 @@ class DBLayer
 
 		$result = $this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' ADD '.$field_name.' '.$field_type) ? true : false;
 
-		if ($default_value !== null)
+		if (!is_null($default_value))
 		{
 			if (!is_int($default_value) && !is_float($default_value))
 				$default_value = '\''.$this->escape($default_value).'\'';

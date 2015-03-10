@@ -9,7 +9,7 @@ $lang_post = array(
 'Too long subject'	=>	'Subjects cannot be longer than 70 characters.',
 'No message'		=>	'You must enter a message.',
 'No message after censoring'	=>	'You must enter a message. After applying censoring filters, your message was empty.',
-'Too long message'	=>	'Posts cannot be longer that %s bytes.',
+'Too long message'	=>	'Posts cannot be longer than %s bytes.',
 'All caps subject'	=>	'Subjects cannot contain only capital letters.',
 'All caps message'	=>	'Posts cannot contain only capital letters.',
 'Empty after strip'	=>	'It seems your post consisted of empty BBCodes only. It is possible that this happened because e.g. the innermost quote was discarded because of the maximum quote depth level.',
@@ -26,8 +26,7 @@ $lang_post = array(
 'Subscribe'			=>	'Subscribe to this topic',
 'Stay subscribed'	=>	'Stay subscribed to this topic',
 'Topic review'		=>	'Topic review (newest first)',
-'Flood start'		=>	'At least',
-'flood end'			=>	'seconds have to pass between posts. Please wait a little while and try posting again.',
+'Flood start'		=>	'At least %s seconds have to pass between posts. Please wait %s seconds and try posting again.',
 'Preview'			=>	'Preview', // submit button to preview message
 
 // Edit post

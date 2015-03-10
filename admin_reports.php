@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -15,7 +15,7 @@ require PUN_ROOT.'include/common_admin.php';
 
 
 if (!$pun_user['is_admmod'])
-	message($lang_common['No permission']);
+	message($lang_common['No permission'], false, '403 Forbidden');
 
 // Load the admin_reports.php language file
 require PUN_ROOT.'lang/'.$admin_language.'/admin_reports.php';
@@ -76,7 +76,7 @@ if ($db->num_rows($result))
 					<fieldset>
 						<legend><?php printf($lang_admin_reports['Report subhead'], format_time($cur_report['created'])) ?></legend>
 						<div class="infldset">
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php printf($lang_admin_reports['Reported by'], $reporter) ?></th>
 									<td class="location"><?php echo implode(' ', $report_location) ?></td>
@@ -140,7 +140,7 @@ if ($db->num_rows($result))
 					<fieldset>
 						<legend><?php printf($lang_admin_reports['Zapped subhead'], format_time($cur_report['zapped']), $zapped_by) ?></legend>
 						<div class="infldset">
-							<table class="aligntop" cellspacing="0">
+							<table class="aligntop">
 								<tr>
 									<th scope="row"><?php printf($lang_admin_reports['Reported by'], $reporter) ?></th>
 									<td class="location"><?php echo implode(' ', $report_location) ?></td>

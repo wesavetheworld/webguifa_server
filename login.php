@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -20,6 +20,8 @@ $action = isset($_GET['action']) ? $_GET['action'] : null;
 
 if (isset($_POST['form_sent']) && $action == 'in')
 {
+	flux_hook('login_before_validation');
+
 	$form_username = pun_trim($_POST['req_username']);
 	$form_password = pun_trim($_POST['req_password']);
 	$save_pass = isset($_POST['save_pass']);
@@ -35,7 +37,7 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	{
 		$form_password_hash = pun_hash($form_password); // Will result in a SHA-1 hash
 
-		// If there is a salt in the database we have upgraded from 1.3-legacy though havent yet logged in
+		// If there is a salt in the database we have upgraded from 1.3-legacy though haven't yet logged in
 		if (!empty($cur_user['salt']))
 		{
 			if (sha1($cur_user['salt'].sha1($form_password)) == $cur_user['password']) // 1.3 used sha1(salt.sha1(pass))
@@ -63,6 +65,8 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	if (!$authorized)
 		message($lang_login['Wrong user/pass'].' <a href="login.php?action=forget">'.$lang_login['Forgotten pass'].'</a>');
 
+	flux_hook('login_after_validation');
+
 	// Update the status if this is the first time the user logged in
 	if ($cur_user['group_id'] == PUN_UNVERIFIED)
 	{
@@ -75,7 +79,7 @@ if (isset($_POST['form_sent']) && $action == 'in')
 		generate_users_info_cache();
 	}
 
-	// Remove this users guest entry from the online list
+	// Remove this user's guest entry from the online list
 	$db->query('DELETE FROM '.$db->prefix.'online WHERE ident=\''.$db->escape(get_remote_address()).'\'') or error('Unable to delete from online list', __FILE__, __LINE__, $db->error());
 
 	$expire = ($save_pass == '1') ? time() + 1209600 : time() + $pun_config['o_timeout_visit'];
@@ -84,7 +88,10 @@ if (isset($_POST['form_sent']) && $action == 'in')
 	// Reset tracked topics
 	set_tracked_topics(null);
 
-	redirect(htmlspecialchars($_POST['redirect_url']), $lang_login['Login redirect']);
+	// Try to determine if the data in redirect_url is valid (if not, we redirect to index.php after login)
+	$redirect_url = validate_redirect($_POST['redirect_url'], 'index.php');
+
+	redirect(pun_htmlspecialchars($redirect_url), $lang_login['Login redirect']);
 }
 
 
@@ -112,19 +119,26 @@ else if ($action == 'out')
 else if ($action == 'forget' || $action == 'forget_2')
 {
 	if (!$pun_user['is_guest'])
+	{
 		header('Location: index.php');
+		exit;
+	}
 
 	if (isset($_POST['form_sent']))
 	{
+		flux_hook('forget_password_before_validation');
+
 		// Start with a clean slate
 		$errors = array();
 
 		require PUN_ROOT.'include/email.php';
 
 		// Validate the email address
-		$email = strtolower(trim($_POST['req_email']));
+		$email = strtolower(pun_trim($_POST['req_email']));
 		if (!is_valid_email($email))
 			$errors[] = $lang_common['Invalid email'];
+
+		flux_hook('forget_password_after_validation');
 
 		// Did everything go according to plan?
 		if (empty($errors))
@@ -143,16 +157,16 @@ else if ($action == 'forget' || $action == 'forget_2')
 
 				// Do the generic replacements first (they apply to all emails sent out here)
 				$mail_message = str_replace('<base_url>', get_base_url().'/', $mail_message);
-				$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'].' '.$lang_common['Mailer'], $mail_message);
+				$mail_message = str_replace('<board_mailer>', $pun_config['o_board_title'], $mail_message);
 
 				// Loop through users we found
 				while ($cur_hit = $db->fetch_assoc($result))
 				{
 					if ($cur_hit['last_email_sent'] != '' && (time() - $cur_hit['last_email_sent']) < 3600 && (time() - $cur_hit['last_email_sent']) >= 0)
-						message($lang_login['Email flood'], true);
+						message(sprintf($lang_login['Email flood'], intval((3600 - (time() - $cur_hit['last_email_sent'])) / 60)), true);
 
 					// Generate a new password and a new password activation code
-					$new_password = random_pass(8);
+					$new_password = random_pass(12);
 					$new_password_key = random_pass(8);
 
 					$db->query('UPDATE '.$db->prefix.'users SET activate_string=\''.pun_hash($new_password).'\', activate_key=\''.$new_password_key.'\', last_email_sent = '.time().' WHERE id='.$cur_hit['id']) or error('Unable to update activation data', __FILE__, __LINE__, $db->error());
@@ -165,7 +179,7 @@ else if ($action == 'forget' || $action == 'forget_2')
 					pun_mail($email, $mail_subject, $cur_mail_message);
 				}
 
-				message($lang_login['Forget mail'].' <a href="mailto:'.$pun_config['o_admin_email'].'">'.$pun_config['o_admin_email'].'</a>.', true);
+				message($lang_login['Forget mail'].' <a href="mailto:'.pun_htmlspecialchars($pun_config['o_admin_email']).'">'.pun_htmlspecialchars($pun_config['o_admin_email']).'</a>.', true);
 			}
 			else
 				$errors[] = $lang_login['No email match'].' '.htmlspecialchars($email).'.';
@@ -175,6 +189,9 @@ else if ($action == 'forget' || $action == 'forget_2')
 	$page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_login['Request pass']);
 	$required_fields = array('req_email' => $lang_common['Email']);
 	$focus_element = array('request_pass', 'req_email');
+
+	flux_hook('forget_password_before_header');
+
 	define ('PUN_ACTIVE_PAGE', 'login');
 	require PUN_ROOT.'header.php';
 
@@ -217,6 +234,7 @@ if (!empty($errors))
 					</div>
 				</fieldset>
 			</div>
+<?php flux_hook('forget_password_before_submit') ?>
 			<p class="buttons"><input type="submit" name="request_pass" value="<?php echo $lang_common['Submit'] ?>" /><?php if (empty($errors)): ?> <a href="javascript:history.go(-1)"><?php echo $lang_common['Go back'] ?></a><?php endif; ?></p>
 		</form>
 	</div>
@@ -228,39 +246,26 @@ if (!empty($errors))
 
 
 if (!$pun_user['is_guest'])
+{
 	header('Location: index.php');
+	exit;
+}
 
 // Try to determine if the data in HTTP_REFERER is valid (if not, we redirect to index.php after login)
 if (!empty($_SERVER['HTTP_REFERER']))
-{
-	$referrer = parse_url($_SERVER['HTTP_REFERER']);
-	// Remove www subdomain if it exists
-	if (strpos($referrer['host'], 'www.') === 0)
-		$referrer['host'] = substr($referrer['host'], 4);
-
-	// Make sure the path component exists
-	if (!isset($referrer['path']))
-		$referrer['path'] = '';
-
-	$valid = parse_url(get_base_url());
-	// Remove www subdomain if it exists
-	if (strpos($valid['host'], 'www.') === 0)
-		$valid['host'] = substr($valid['host'], 4);
-
-	// Make sure the path component exists
-	if (!isset($valid['path']))
-		$valid['path'] = '';
-
-	if ($referrer['host'] == $valid['host'] && preg_match('#^'.preg_quote($valid['path']).'/(.*?)\.php#i', $referrer['path']))
-		$redirect_url = $_SERVER['HTTP_REFERER'];
-}
+	$redirect_url = validate_redirect($_SERVER['HTTP_REFERER'], null);
 
 if (!isset($redirect_url))
-	$redirect_url = 'index.php';
+	$redirect_url = get_base_url(true).'/index.php';
+else if (preg_match('%viewtopic\.php\?pid=(\d+)$%', $redirect_url, $matches))
+	$redirect_url .= '#p'.$matches[1];
 
 $page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_common['Login']);
 $required_fields = array('req_username' => $lang_common['Username'], 'req_password' => $lang_common['Password']);
 $focus_element = array('login', 'req_username');
+
+flux_hook('login_before_header');
+
 define('PUN_ACTIVE_PAGE', 'login');
 require PUN_ROOT.'header.php';
 
@@ -283,11 +288,12 @@ require PUN_ROOT.'header.php';
 						</div>
 
 						<p class="clearb"><?php echo $lang_login['Login info'] ?></p>
-						<p class="actions"><span><a href="register.php" tabindex="4"><?php echo $lang_login['Not registered'] ?></a></span> <span><a href="login.php?action=forget" tabindex="5"><?php echo $lang_login['Forgotten pass'] ?></a></span></p>
+						<p class="actions"><span><a href="register.php" tabindex="5"><?php echo $lang_login['Not registered'] ?></a></span> <span><a href="login.php?action=forget" tabindex="6"><?php echo $lang_login['Forgotten pass'] ?></a></span></p>
 					</div>
 				</fieldset>
 			</div>
-			<p class="buttons"><input type="submit" name="login" value="<?php echo $lang_common['Login'] ?>" tabindex="3" /></p>
+<?php flux_hook('login_before_submit') ?>
+			<p class="buttons"><input type="submit" name="login" value="<?php echo $lang_common['Login'] ?>" tabindex="4" /></p>
 		</form>
 	</div>
 </div>

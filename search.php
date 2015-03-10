@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -18,9 +18,9 @@ require PUN_ROOT.'lang/'.$pun_user['language'].'/forum.php';
 
 
 if ($pun_user['g_read_board'] == '0')
-	message($lang_common['No view']);
+	message($lang_common['No view'], false, '403 Forbidden');
 else if ($pun_user['g_search'] == '0')
-	message($lang_search['No search permission']);
+	message($lang_search['No search permission'], false, '403 Forbidden');
 
 require PUN_ROOT.'include/search_idx.php';
 
@@ -28,8 +28,10 @@ require PUN_ROOT.'include/search_idx.php';
 if (isset($_GET['action']) || isset($_GET['search_id']))
 {
 	$action = (isset($_GET['action'])) ? $_GET['action'] : null;
-	$forum = (isset($_GET['forum'])) ? intval($_GET['forum']) : -1;
+	$forums = isset($_GET['forums']) ? (is_array($_GET['forums']) ? $_GET['forums'] : array_filter(explode(',', $_GET['forums']))) : (isset($_GET['forum']) ? array($_GET['forum']) : array());
 	$sort_dir = (isset($_GET['sort_dir']) && $_GET['sort_dir'] == 'DESC') ? 'DESC' : 'ASC';
+
+	$forums = array_map('intval', $forums);
 
 	// Allow the old action names for backwards compatibility reasons
 	if ($action == 'show_user')
@@ -42,7 +44,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 	{
 		$search_id = intval($_GET['search_id']);
 		if ($search_id < 1)
-			message($lang_common['Bad request']);
+			message($lang_common['Bad request'], false, '404 Not Found');
 	}
 	// If it's a regular search (keywords and/or author)
 	else if ($action == 'search')
@@ -50,10 +52,10 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 		$keywords = (isset($_GET['keywords'])) ? utf8_strtolower(pun_trim($_GET['keywords'])) : null;
 		$author = (isset($_GET['author'])) ? utf8_strtolower(pun_trim($_GET['author'])) : null;
 
-		if (preg_match('#^[\*%]+$#', $keywords) || (pun_strlen(str_replace(array('*', '%'), '', $keywords)) < PUN_SEARCH_MIN_WORD && !is_cjk($keywords)))
+		if (preg_match('%^[\*\%]+$%', $keywords) || (pun_strlen(str_replace(array('*', '%'), '', $keywords)) < PUN_SEARCH_MIN_WORD && !is_cjk($keywords)))
 			$keywords = '';
 
-		if (preg_match('#^[\*%]+$#', $author) || pun_strlen(str_replace(array('*', '%'), '', $author)) < 2)
+		if (preg_match('%^[\*\%]+$%', $author) || pun_strlen(str_replace(array('*', '%'), '', $author)) < 2)
 			$author = '';
 
 		if (!$keywords && !$author)
@@ -62,30 +64,30 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 		if ($author)
 			$author = str_replace('*', '%', $author);
 
-		$show_as = (isset($_GET['show_as'])) ? $_GET['show_as'] : 'posts';
-		$sort_by = (isset($_GET['sort_by'])) ? intval($_GET['sort_by']) : null;
-		$search_in = (!isset($_GET['search_in']) || $_GET['search_in'] == 'all') ? 0 : (($_GET['search_in'] == 'message') ? 1 : -1);
+		$show_as = (isset($_GET['show_as']) && $_GET['show_as'] == 'topics') ? 'topics' : 'posts';
+		$sort_by = (isset($_GET['sort_by'])) ? intval($_GET['sort_by']) : 0;
+		$search_in = (!isset($_GET['search_in']) || $_GET['search_in'] == '0') ? 0 : (($_GET['search_in'] == '1') ? 1 : -1);
 	}
 	// If it's a user search (by ID)
 	else if ($action == 'show_user_posts' || $action == 'show_user_topics' || $action == 'show_subscriptions')
 	{
 		$user_id = (isset($_GET['user_id'])) ? intval($_GET['user_id']) : $pun_user['id'];
 		if ($user_id < 2)
-			message($lang_common['Bad request']);
+			message($lang_common['Bad request'], false, '404 Not Found');
 
 		// Subscribed topics can only be viewed by admins, moderators and the users themselves
 		if ($action == 'show_subscriptions' && !$pun_user['is_admmod'] && $user_id != $pun_user['id'])
-			message($lang_common['No permission']);
+			message($lang_common['No permission'], false, '403 Forbidden');
 	}
 	else if ($action == 'show_recent')
 		$interval = isset($_GET['value']) ? intval($_GET['value']) : 86400;
 	else if ($action == 'show_replies')
 	{
 		if ($pun_user['is_guest'])
-			message($lang_common['Bad request']);
+			message($lang_common['Bad request'], false, '404 Not Found');
 	}
 	else if ($action != 'show_new' && $action != 'show_unanswered')
-		message($lang_common['Bad request']);
+		message($lang_common['Bad request'], false, '404 Not Found');
 
 
 	// If a valid search_id was supplied we attempt to fetch the search results from the db
@@ -115,13 +117,13 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 		$keyword_results = $author_results = array();
 
 		// Search a specific forum?
-		$forum_sql = ($forum != -1 || ($forum == -1 && $pun_config['o_search_all_forums'] == '0' && !$pun_user['is_admmod'])) ? ' AND t.forum_id = '.$forum : '';
+		$forum_sql = (!empty($forums) || (empty($forums) && $pun_config['o_search_all_forums'] == '0' && !$pun_user['is_admmod'])) ? ' AND t.forum_id IN ('.implode(',', $forums).')' : '';
 
 		if (!empty($author) || !empty($keywords))
 		{
 			// Flood protection
 			if ($pun_user['last_search'] && (time() - $pun_user['last_search']) < $pun_user['g_search_flood'] && (time() - $pun_user['last_search']) >= 0)
-				message(sprintf($lang_search['Search flood'], $pun_user['g_search_flood']));
+				message(sprintf($lang_search['Search flood'], $pun_user['g_search_flood'], $pun_user['g_search_flood'] - (time() - $pun_user['last_search'])));
 
 			if (!$pun_user['is_guest'])
 				$db->query('UPDATE '.$db->prefix.'users SET last_search='.time().' WHERE id='.$pun_user['id']) or error('Unable to update user', __FILE__, __LINE__, $db->error());
@@ -236,7 +238,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 					}
 				}
 
-				// Sort the results - annoyingly array_multisort re-indexes arrays with numeric keys, so we need to split the keys out into a seperate array then combine them again after
+				// Sort the results - annoyingly array_multisort re-indexes arrays with numeric keys, so we need to split the keys out into a separate array then combine them again after
 				$post_ids = array_keys($keyword_results);
 				$topic_ids = array_values($keyword_results);
 
@@ -283,17 +285,17 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 			if ($author && $keywords)
 			{
 				$search_ids = array_intersect_assoc($keyword_results, $author_results);
-				$search_type = array('both', array($keywords, pun_trim($_GET['author'])), $forum, isset($_GET['search_in']) ? $_GET['search_in'] : '');
+				$search_type = array('both', array($keywords, pun_trim($_GET['author'])), implode(',', $forums), $search_in);
 			}
 			else if ($keywords)
 			{
 				$search_ids = $keyword_results;
-				$search_type = array('keywords', $keywords, $forum, isset($_GET['search_in']) ? $_GET['search_in'] : '');
+				$search_type = array('keywords', $keywords, implode(',', $forums), $search_in);
 			}
 			else
 			{
 				$search_ids = $author_results;
-				$search_type = array('author', pun_trim($_GET['author']), $forum, isset($_GET['search_in']) ? $_GET['search_in'] : '');
+				$search_type = array('author', pun_trim($_GET['author']), implode(',', $forums), $search_in);
 			}
 
 			unset($keyword_results, $author_results);
@@ -321,7 +323,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 			if ($action == 'show_new')
 			{
 				if ($pun_user['is_guest'])
-					message($lang_common['No permission']);
+					message($lang_common['No permission'], false, '403 Forbidden');
 
 				$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=t.forum_id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND t.last_post>'.$pun_user['last_visit'].' AND t.moved_to IS NULL'.(isset($_GET['fid']) ? ' AND t.forum_id='.intval($_GET['fid']) : '').' ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
 				$num_hits = $db->num_rows($result);
@@ -358,7 +360,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 				if (!$num_hits)
 					message($lang_search['No user posts']);
 
-				// Pass on the user ID so that we can later know whos posts we're searching for
+				// Pass on the user ID so that we can later know whose posts we're searching for
 				$search_type[2] = $user_id;
 			}
 			// If it's a search for topics by a specific user ID
@@ -370,14 +372,14 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 				if (!$num_hits)
 					message($lang_search['No user topics']);
 
-				// Pass on the user ID so that we can later know whos topics we're searching for
+				// Pass on the user ID so that we can later know whose topics we're searching for
 				$search_type[2] = $user_id;
 			}
 			// If it's a search for subscribed topics
 			else if ($action == 'show_subscriptions')
 			{
 				if ($pun_user['is_guest'])
-					message($lang_common['Bad request']);
+					message($lang_common['Bad request'], false, '404 Not Found');
 
 				$result = $db->query('SELECT t.id FROM '.$db->prefix.'topics AS t INNER JOIN '.$db->prefix.'topic_subscriptions AS s ON (t.id=s.topic_id AND s.user_id='.$user_id.') LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=t.forum_id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) ORDER BY t.last_post DESC') or error('Unable to fetch topic list', __FILE__, __LINE__, $db->error());
 				$num_hits = $db->num_rows($result);
@@ -405,7 +407,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 			$db->free_result($result);
 		}
 		else
-			message($lang_common['Bad request']);
+			message($lang_common['Bad request'], false, '404 Not Found');
 
 
 		// Prune "old" search results
@@ -498,7 +500,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 			$search_set[] = $row;
 
 		$crumbs_text = array();
-		$crumbs_text['show_as'] = $show_as == 'topics' ? $lang_search['Search topics'] : $lang_search['Search posts'];
+		$crumbs_text['show_as'] = $lang_search['Search'];
 
 		if ($search_type[0] == 'action')
 		{
@@ -515,12 +517,12 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 				if ($db->num_rows($result))
 					$subscriber_name = $db->result($result);
 				else
-					message($lang_common['Bad request']);
+					message($lang_common['Bad request'], false, '404 Not Found');
 
 				$crumbs_text['search_type'] = '<a href="search.php?action=show_subscriptions&amp;user_id='.$subscriber_id.'">'.sprintf($lang_search['Quick search show_subscriptions'], pun_htmlspecialchars($subscriber_name)).'</a>';
 			}
 			else
-				$crumbs_text['search_type'] = '<a href="search.php?action='.pun_htmlspecialchars($search_type[1]).'">'.$lang_search['Quick search '.$search_type[1]].'</a>';
+				$crumbs_text['search_type'] = '<a href="search.php?action='.$search_type[1].'">'.$lang_search['Quick search '.$search_type[1]].'</a>';
 		}
 		else
 		{
@@ -542,7 +544,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 				$crumbs_text['search_type'] = sprintf($lang_search['By user show as '.$show_as], pun_htmlspecialchars($author));
 			}
 
-			$crumbs_text['search_type'] = '<a href="search.php?action=search&amp;keywords='.pun_htmlspecialchars($keywords).'&amp;author='.pun_htmlspecialchars($author).'&amp;forum='.pun_htmlspecialchars($search_type[2]).'&amp;search_in='.pun_htmlspecialchars($search_type[3]).'&amp;sort_by='.pun_htmlspecialchars($sort_by).'&amp;sort_dir='.pun_htmlspecialchars($sort_dir).'&amp;show_as='.pun_htmlspecialchars($show_as).'">'.$crumbs_text['search_type'].'</a>';
+			$crumbs_text['search_type'] = '<a href="search.php?action=search&amp;keywords='.urlencode($keywords).'&amp;author='.urlencode($author).'&amp;forums='.$search_type[2].'&amp;search_in='.$search_type[3].'&amp;sort_by='.$sort_by.'&amp;sort_dir='.$sort_dir.'&amp;show_as='.$show_as.'">'.$crumbs_text['search_type'].'</a>';
 		}
 
 		$page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_search['Search results']);
@@ -575,7 +577,7 @@ if (isset($_GET['action']) || isset($_GET['search_id']))
 	<h2><span><?php echo $lang_search['Search results'] ?></span></h2>
 	<div class="box">
 		<div class="inbox">
-			<table cellspacing="0">
+			<table>
 			<thead>
 				<tr>
 					<th class="tcl" scope="col"><?php echo $lang_common['Topic'] ?></th>
@@ -796,42 +798,82 @@ require PUN_ROOT.'header.php';
 				<fieldset>
 					<legend><?php echo $lang_search['Search in legend'] ?></legend>
 					<div class="infldset">
-						<label class="conl"><?php echo $lang_search['Forum search']."\n" ?>
-						<br /><select id="forum" name="forum">
 <?php
-
-if ($pun_config['o_search_all_forums'] == '1' || $pun_user['is_admmod'])
-	echo "\t\t\t\t\t\t\t".'<option value="-1">'.$lang_search['All forums'].'</option>'."\n";
 
 $result = $db->query('SELECT c.id AS cid, c.cat_name, f.id AS fid, f.forum_name, f.redirect_url FROM '.$db->prefix.'categories AS c INNER JOIN '.$db->prefix.'forums AS f ON c.id=f.cat_id LEFT JOIN '.$db->prefix.'forum_perms AS fp ON (fp.forum_id=f.id AND fp.group_id='.$pun_user['g_id'].') WHERE (fp.read_forum IS NULL OR fp.read_forum=1) AND f.redirect_url IS NULL ORDER BY c.disp_position, c.id, f.disp_position', true) or error('Unable to fetch category/forum list', __FILE__, __LINE__, $db->error());
 
-$cur_category = 0;
-while ($cur_forum = $db->fetch_assoc($result))
+// We either show a list of forums of which multiple can be selected
+if ($pun_config['o_search_all_forums'] == '1' || $pun_user['is_admmod'])
 {
-	if ($cur_forum['cid'] != $cur_category) // A new category since last iteration?
-	{
-		if ($cur_category)
-			echo "\t\t\t\t\t\t\t".'</optgroup>'."\n";
+	echo "\t\t\t\t\t\t".'<div class="conl multiselect">'.$lang_search['Forum search']."\n";
+	echo "\t\t\t\t\t\t".'<br />'."\n";
+	echo "\t\t\t\t\t\t".'<div class="checklist">'."\n";
 
-		echo "\t\t\t\t\t\t\t".'<optgroup label="'.pun_htmlspecialchars($cur_forum['cat_name']).'">'."\n";
-		$cur_category = $cur_forum['cid'];
+	$cur_category = 0;
+	while ($cur_forum = $db->fetch_assoc($result))
+	{
+		if ($cur_forum['cid'] != $cur_category) // A new category since last iteration?
+		{
+			if ($cur_category)
+			{
+				echo "\t\t\t\t\t\t\t\t".'</div>'."\n";
+				echo "\t\t\t\t\t\t\t".'</fieldset>'."\n";
+			}
+			
+			echo "\t\t\t\t\t\t\t".'<fieldset><legend><span>'.pun_htmlspecialchars($cur_forum['cat_name']).'</span></legend>'."\n";
+			echo "\t\t\t\t\t\t\t\t".'<div class="rbox">';
+			$cur_category = $cur_forum['cid'];
+		}
+
+		echo "\t\t\t\t\t\t\t\t".'<label><input type="checkbox" name="forums[]" id="forum-'.$cur_forum['fid'].'" value="'.$cur_forum['fid'].'" />'.pun_htmlspecialchars($cur_forum['forum_name']).'</label>'."\n";
 	}
 
-	echo "\t\t\t\t\t\t\t\t".'<option value="'.$cur_forum['fid'].'">'.pun_htmlspecialchars($cur_forum['forum_name']).'</option>'."\n";
+	if ($cur_category)
+	{
+		echo "\t\t\t\t\t\t\t\t".'</div>'."\n";
+		echo "\t\t\t\t\t\t\t".'</fieldset>'."\n";
+	}
+	
+	echo "\t\t\t\t\t\t".'</div>'."\n";
+	echo "\t\t\t\t\t\t".'</div>'."\n";
+}
+// ... or a simple select list for one forum only
+else
+{
+	echo "\t\t\t\t\t\t".'<label class="conl">'.$lang_search['Forum search']."\n";
+	echo "\t\t\t\t\t\t".'<br />'."\n";
+	echo "\t\t\t\t\t\t".'<select id="forum" name="forum">'."\n";
+
+	$cur_category = 0;
+	while ($cur_forum = $db->fetch_assoc($result))
+	{
+		if ($cur_forum['cid'] != $cur_category) // A new category since last iteration?
+		{
+			if ($cur_category)
+				echo "\t\t\t\t\t\t\t".'</optgroup>'."\n";
+
+			echo "\t\t\t\t\t\t\t".'<optgroup label="'.pun_htmlspecialchars($cur_forum['cat_name']).'">'."\n";
+			$cur_category = $cur_forum['cid'];
+		}
+
+		echo "\t\t\t\t\t\t\t\t".'<option value="'.$cur_forum['fid'].'">'.pun_htmlspecialchars($cur_forum['forum_name']).'</option>'."\n";
+	}
+
+	echo "\t\t\t\t\t\t\t".'</optgroup>'."\n";
+	echo "\t\t\t\t\t\t".'</select>'."\n";
+	echo "\t\t\t\t\t\t".'<br /></label>'."\n";
 }
 
 ?>
-							</optgroup>
-						</select>
-						<br /></label>
 						<label class="conl"><?php echo $lang_search['Search in']."\n" ?>
 						<br /><select id="search_in" name="search_in">
-							<option value="all"><?php echo $lang_search['Message and subject'] ?></option>
-							<option value="message"><?php echo $lang_search['Message only'] ?></option>
-							<option value="topic"><?php echo $lang_search['Topic only'] ?></option>
+							<option value="0"><?php echo $lang_search['Message and subject'] ?></option>
+							<option value="1"><?php echo $lang_search['Message only'] ?></option>
+							<option value="-1"><?php echo $lang_search['Topic only'] ?></option>
 						</select>
 						<br /></label>
-						<p class="clearb"><?php echo $lang_search['Search in info'] ?></p>
+						<p class="clearl"><?php echo $lang_search['Search in info'] ?></p>
+<?php echo ($pun_config['o_search_all_forums'] == '1' || $pun_user['is_admmod'] ? '<p>'.$lang_search['Search multiple forums info'].'</p>' : '') ?>
 					</div>
 				</fieldset>
 			</div>

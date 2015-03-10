@@ -1,6 +1,6 @@
 <?php
 
-// Language definitions used in admin-users.php
+// Language definitions used in admin_users.php
 $lang_admin_users = array(
 
 'Non numeric message'		=>	'You entered a non-numeric value into a numeric only column.',
@@ -47,7 +47,7 @@ $lang_admin_users = array(
 'Website label'				=>	'Website',
 'Jabber label'				=>	'Jabber',
 'ICQ label'					=>	'ICQ',
-'MSN label'					=>	'MSN Messenger',
+'MSN label'					=>	'Microsoft Account',
 'AOL label'					=>	'AOL IM',
 'Yahoo label'				=>	'Yahoo Messenger',
 'Location label'			=>	'Location',
@@ -58,6 +58,8 @@ $lang_admin_users = array(
 'Last post after label'		=>	'Last post is after',
 'Date help'					=>	'(yyyy-mm-dd hh:mm:ss)',
 'Last post before label'	=>	'Last post is before',
+'Last visit after label'	=>	'Last visit is after',
+'Last visit before label'	=>	'Last visit is before',
 'Registered after label'	=>	'Registered after',
 'Registered before label'	=>	'Registered before',
 'Order by label'			=>	'Order by',
@@ -65,6 +67,7 @@ $lang_admin_users = array(
 'Order by e-mail'			=>	'Email',
 'Order by posts'			=>	'Number of posts',
 'Order by last post'		=>	'Last post',
+'Order by last visit'		=>	'Last visit',
 'Order by registered'		=>	'Registered',
 'Ascending'					=>	'Ascending',
 'Descending'				=>	'Descending',

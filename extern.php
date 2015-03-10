@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright (C) 2008-2011 FluxBB
+ * Copyright (C) 2008-2012 FluxBB
  * based on code by Rickard Andersson copyright (C) 2002-2008 PunBB
  * License: http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  */
@@ -438,16 +438,11 @@ if ($action == 'feed')
 			// Output feed as PHP code
 			if (isset($cache_id))
 			{
-				$fh = @fopen(FORUM_CACHE_DIR.'cache_'.$cache_id.'.php', 'wb');
-				if (!$fh)
-					error('Unable to write feed cache file to cache directory. Please make sure PHP has write access to the directory \''.pun_htmlspecialchars(FORUM_CACHE_DIR).'\'', __FILE__, __LINE__);
+				if (!defined('FORUM_CACHE_FUNCTIONS_LOADED'))
+					require PUN_ROOT.'include/cache.php';
 
-				fwrite($fh, '<?php'."\n\n".'$feed = '.var_export($feed, true).';'."\n\n".'$cache_expire = '.($now + ($pun_config['o_feed_ttl'] * 60)).';'."\n\n".'?>');
-
-				fclose($fh);
-
-				if (function_exists('apc_delete_file'))
-					@apc_delete_file(FORUM_CACHE_DIR.'cache_'.$cache_id.'.php');
+				$content = '<?php'."\n\n".'$feed = '.var_export($feed, true).';'."\n\n".'$cache_expire = '.($now + ($pun_config['o_feed_ttl'] * 60)).';'."\n\n".'?>';
+				fluxbb_write_cache_file('cache_'.$cache_id.'.php', $content);
 			}
 		}
 
