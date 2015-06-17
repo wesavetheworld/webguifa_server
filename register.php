@@ -73,8 +73,13 @@ if (isset($_POST['form_sent']))
 	if ($db->num_rows($result))
 		message($lang_register['Registration flood']);
 
+	// detect bot
+	if (pun_strlen($_POST['req_username']) > 0)
+	{
+		$errors[] = 'Please leave that field blank!';
+	}
 
-	$username = pun_trim($_POST['req_user']);
+	$username = pun_trim($_POST['req_honeypot']);
 	$email1 = strtolower(pun_trim($_POST['req_email1']));
 
 	if ($pun_config['o_regs_verify'] == '1')
@@ -265,8 +270,8 @@ if (isset($_POST['form_sent']))
 
 
 $page_title = array(pun_htmlspecialchars($pun_config['o_board_title']), $lang_register['Register']);
-$required_fields = array('req_user' => $lang_common['Username'], 'req_password1' => $lang_common['Password'], 'req_password2' => $lang_prof_reg['Confirm pass'], 'req_email1' => $lang_common['Email'], 'req_email2' => $lang_common['Email'].' 2');
-$focus_element = array('register', 'req_user');
+$required_fields = array('req_honeypot' => $lang_common['Username'], 'req_password1' => $lang_common['Password'], 'req_password2' => $lang_prof_reg['Confirm pass'], 'req_email1' => $lang_common['Email'], 'req_email2' => $lang_common['Email'].' 2');
+$focus_element = array('register', 'req_honeypot');
 
 flux_hook('register_before_header');
 
@@ -301,6 +306,7 @@ if (!empty($errors))
 <?php
 
 }
+echo '<style type="text/css">#register label.usernamefield { display: none }</style>'."\n";
 ?>
 <div id="regform" class="blockform">
 	<h2><span><?php echo $lang_register['Register'] ?></span></h2>
@@ -316,7 +322,8 @@ if (!empty($errors))
 					<legend><?php echo $lang_register['Username legend'] ?></legend>
 					<div class="infldset">
 						<input type="hidden" name="form_sent" value="1" />
-						<label class="required"><strong><?php echo $lang_common['Username'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="text" name="req_user" value="<?php if (isset($_POST['req_user'])) echo pun_htmlspecialchars($_POST['req_user']); ?>" size="25" maxlength="25" /><br /></label>
+						<label class="required usernamefield"><strong>If you are not a bot please leave this field blank!</strong><br><input type="text" name="req_username" value="" size="25" maxlength="25"><br></label>
+						<label class="required"><strong><?php echo $lang_common['Username'] ?> <span><?php echo $lang_common['Required'] ?></span></strong><br /><input type="text" name="req_honeypot" value="<?php if (isset($_POST['req_honeypot'])) echo pun_htmlspecialchars($_POST['req_honeypot']); ?>" size="25" maxlength="25" /><br /></label>
 					</div>
 				</fieldset>
 			</div>
